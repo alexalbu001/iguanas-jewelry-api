@@ -169,5 +169,14 @@ func TestDelete(t *testing.T) {
 	if products[0].Name != "Test2" {
 		t.Errorf("Expected first product name inside DB to be 'Test2', got %s instead", products[0].Name)
 	}
-	// some more edge cases left
+	_, err = testStore.GetByID(Product3)
+	if err == nil {
+		t.Errorf("Expected error, got nothing")
+	}
+
+	emptyId := ""
+	shouldError := testStore.Delete(emptyId)
+	if shouldError == nil {
+		t.Errorf("Expected error when deleting with empty ID, got nil")
+	}
 }
