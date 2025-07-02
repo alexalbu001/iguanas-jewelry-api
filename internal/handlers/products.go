@@ -109,3 +109,9 @@ func (h *ProductHandlers) DeleteProductByID(c *gin.Context) {
 // func DeleteProductsByID(c *gin.Context) {
 
 // }
+
+func NewProductHandlers(store *store.ProductsStore) *ProductHandlers {
+	return &ProductHandlers{
+		Store: store,
+	}
+}

@@ -7,7 +7,9 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
 	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
+	"github.com/alexalbu001/iguanas-jewelry/internal/middleware"
 	"github.com/alexalbu001/iguanas-jewelry/internal/routes"
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/gin-gonic/gin"
@@ -36,16 +38,29 @@ func main() {
 	//create store
 	productStore := store.NewProductStore(dbpool)
 
-	//create handlers with store
-	productHandlers := &handlers.ProductHandlers{
-		Store: productStore,
-	}
+	userStore := store.NewUsersStore(dbpool)
 
-	routes.SetupRoutes(r, productHandlers)
+	sessionsStore := auth.NewSessionStore()
+
+	//create handlers with store
+	productHandlers := handlers.NewProductHandlers(productStore)
+	userHandlers := handlers.NewUserHandler(userStore)
+	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore)
+
+	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
+	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
+
+	routes.SetupRoutes(r, productHandlers, userHandlers, authHandlers, authMiddleware, adminMiddleware)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "pong",
+		})
+	})
+
+	r.GET("/", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "Hello World",
 		})
 	})
 

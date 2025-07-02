@@ -1,7 +1,9 @@
 package routes
 
 import (
+	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
 	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
+	"github.com/alexalbu001/iguanas-jewelry/internal/middleware"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,13 +28,21 @@ import (
 // 	r.Run(":" + os.Getenv("PORT"))
 // }
 
-func SetupRoutes(r *gin.Engine, h *handlers.ProductHandlers) {
+func SetupRoutes(r *gin.Engine, h *handlers.ProductHandlers, u *handlers.UserHandlers, a *auth.AuthHandlers, m *middleware.AuthMiddleware, n *middleware.AdminMiddleware) {
 	api := r.Group("/api/v1")
 	{
 		api.GET("/products", h.GetProducts)
 		api.GET("/products/:id", h.GetProductByID)
-		api.POST("/products", h.PostProducts)
-		api.PUT("/products/:id", h.UpdateProductByID)
-		api.DELETE("/products/:id", h.DeleteProductByID)
+		api.POST("/products", m.RequireAuth(), n.RequireAdmin(), h.PostProducts)
+		api.PUT("/products/:id", m.RequireAuth(), n.RequireAdmin(), h.UpdateProductByID)
+		api.DELETE("/products/:id", m.RequireAuth(), n.RequireAdmin(), h.DeleteProductByID)
+		// Users
+		api.GET("/users", m.RequireAuth(), n.RequireAdmin(), u.GetUsers)
+		api.GET("/users/:id", m.RequireAuth(), n.RequireAdmin(), u.GetUserByID)
+		api.PUT("/users/:id/role", m.RequireAuth(), n.RequireAdmin(), u.UpdateUserRole)
+		api.DELETE("/user/:id", m.RequireAuth(), n.RequireAdmin(), u.DeleteUserByID)
 	}
+	r.GET("/auth/google", a.GoogleLogin)
+	r.GET("/auth/google/callback", a.GoogleCallback)
+
 }
