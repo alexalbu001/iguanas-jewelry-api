@@ -86,7 +86,11 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 	// Use sessions instead of this:
 	// c.SetCookie("user_id", user.ID, 86400, "/", "", false, true)
 	// c.SetCookie("user_email", user.Email, 86400, "/", "", false, true)
-	sessionID := h.Sessions.CreateSession(user.ID, user.Email)
+	sessionID, err := h.Sessions.CreateSession(user.ID, user.Email)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create session"})
+		return
+	}
 	c.SetCookie("session_id", sessionID, 86400, "/", "", false, true)
 
 	c.Redirect(http.StatusFound, "/")

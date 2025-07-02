@@ -14,6 +14,7 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/redis/go-redis/v9"
 )
 
 func init() {
@@ -35,12 +36,19 @@ func main() {
 	fmt.Println("Connected to PostgreSQL database!")
 
 	defer dbpool.Close()
+
+	opt, err := redis.ParseURL(os.Getenv("REDIS_URL"))
+	if err != nil {
+		log.Fatal("Unable to connect to redis", err)
+	}
+	rdb := redis.NewClient(opt)
+
 	//create store
 	productStore := store.NewProductStore(dbpool)
 
 	userStore := store.NewUsersStore(dbpool)
 
-	sessionsStore := auth.NewSessionStore()
+	sessionsStore := auth.NewSessionStore(rdb)
 
 	//create handlers with store
 	productHandlers := handlers.NewProductHandlers(productStore)
