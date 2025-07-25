@@ -4,12 +4,19 @@ import (
 	"net/http"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
-	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/gin-gonic/gin"
 )
 
+type ProductsStore interface {
+	GetAll() ([]models.Product, error)
+	GetByID(id string) (models.Product, error)
+	Add(product models.Product) (models.Product, error)
+	Update(id string, product models.Product) (models.Product, error)
+	Delete(id string) error
+}
+
 type ProductHandlers struct {
-	Store *store.ProductsStore
+	Store ProductsStore
 }
 
 func (h *ProductHandlers) GetProducts(c *gin.Context) {
@@ -110,7 +117,7 @@ func (h *ProductHandlers) DeleteProductByID(c *gin.Context) {
 
 // }
 
-func NewProductHandlers(store *store.ProductsStore) *ProductHandlers {
+func NewProductHandlers(store ProductsStore) *ProductHandlers {
 	return &ProductHandlers{
 		Store: store,
 	}

@@ -42,8 +42,8 @@ func TestGetByID(t *testing.T) {
 	// defer tx.Rollback(context.Background())
 	testID := "test-" + uuid.NewString()
 	_, err := testDB.Exec(context.Background(), `
-	INSERT INTO products (id, name, price, description, category, created_at, updated_at)
-	VALUES ($1, 'Gold Ring', 5.00, 'This is a description', 'Rings', '2025-06-11T12:28:29.914144Z', '2025-06-11T12:28:29.914144Z')
+	INSERT INTO products (id, name, price, description, category, stock_quantity, created_at, updated_at)
+	VALUES ($1, 'Gold Ring', 5.00, 'This is a description', 'Rings', 1, '2025-06-11T12:28:29.914144Z', '2025-06-11T12:28:29.914144Z')
 	`, testID)
 	if err != nil {
 		t.Fatalf("Error executing sql: %v", err) // %w is for fmt.Errorf
@@ -68,12 +68,12 @@ func TestGetByID(t *testing.T) {
 	}
 }
 
-func createTestProduct(t *testing.T, name string, price float64) string {
+func createTestProduct(t *testing.T, name string, price float64, stockQuantity int) string {
 	testID := "test" + uuid.NewString()
 	_, err := testDB.Exec(context.Background(), `
-	INSERT INTO products (id, name, price, description, category, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-	`, testID, name, price, "Test description", "Rings")
+	INSERT INTO products (id, name, price, description, category, stock_quantity, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+	`, testID, name, price, "Test description", "Rings", stockQuantity)
 	if err != nil {
 		t.Fatalf("Error executing sql: %v", err) // %w is for fmt.Errorf
 	}
@@ -89,9 +89,9 @@ func TestGetAll(t *testing.T) {
 		t.Errorf("Expected empty slice, got %d instead", len(empty))
 	}
 
-	Product1 := createTestProduct(t, "Test1", 12.3)
-	Product2 := createTestProduct(t, "Test2", 13.00)
-	Product3 := createTestProduct(t, "Test3", 14)
+	Product1 := createTestProduct(t, "Test1", 12.3, 1)
+	Product2 := createTestProduct(t, "Test2", 13.00, 1)
+	Product3 := createTestProduct(t, "Test3", 14, 1)
 
 	// Clean up
 	defer testDB.Exec(context.Background(), "DELETE FROM products WHERE id IN ($1, $2, $3)", Product1, Product2, Product3)
@@ -121,10 +121,11 @@ func TestGetAll(t *testing.T) {
 func TestAdd(t *testing.T) {
 
 	var testProduct = models.Product{
-		Name:        "Test",
-		Price:       5,
-		Description: "Test Description",
-		Category:    "rings",
+		Name:          "Test",
+		Price:         5,
+		Description:   "Test Description",
+		Category:      "rings",
+		StockQuantity: 1,
 	}
 
 	product, err := testStore.Add(testProduct)
@@ -149,9 +150,9 @@ func TestAdd(t *testing.T) {
 
 func TestDelete(t *testing.T) {
 
-	Product1 := createTestProduct(t, "Test1", 12.3)
-	Product2 := createTestProduct(t, "Test2", 13.00)
-	Product3 := createTestProduct(t, "Test3", 14)
+	Product1 := createTestProduct(t, "Test1", 12.3, 1)
+	Product2 := createTestProduct(t, "Test2", 13.00, 1)
+	Product3 := createTestProduct(t, "Test3", 14, 1)
 	defer testDB.Exec(context.Background(), "DELETE FROM products WHERE id IN ($1, $2, $3)", Product1, Product2, Product3)
 
 	err := testStore.Delete(Product3)

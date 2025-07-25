@@ -48,17 +48,20 @@ func main() {
 
 	userStore := store.NewUsersStore(dbpool)
 
+	cartsStore := store.NewCartsStore(dbpool)
+
 	sessionsStore := auth.NewSessionStore(rdb)
 
 	//create handlers with store
 	productHandlers := handlers.NewProductHandlers(productStore)
 	userHandlers := handlers.NewUserHandler(userStore)
 	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore)
+	cartHandlers := handlers.NewCartsHandler(cartsStore, productStore)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 
-	routes.SetupRoutes(r, productHandlers, userHandlers, authHandlers, authMiddleware, adminMiddleware)
+	routes.SetupRoutes(r, productHandlers, userHandlers, cartHandlers, authHandlers, authMiddleware, adminMiddleware)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

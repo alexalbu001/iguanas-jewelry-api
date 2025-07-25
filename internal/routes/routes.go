@@ -28,7 +28,7 @@ import (
 // 	r.Run(":" + os.Getenv("PORT"))
 // }
 
-func SetupRoutes(r *gin.Engine, h *handlers.ProductHandlers, u *handlers.UserHandlers, a *auth.AuthHandlers, m *middleware.AuthMiddleware, n *middleware.AdminMiddleware) {
+func SetupRoutes(r *gin.Engine, h *handlers.ProductHandlers, u *handlers.UserHandlers, c *handlers.CartsHandlers, a *auth.AuthHandlers, m *middleware.AuthMiddleware, n *middleware.AdminMiddleware) {
 	api := r.Group("/api/v1")
 	{
 		api.GET("/products", h.GetProducts)
@@ -41,6 +41,12 @@ func SetupRoutes(r *gin.Engine, h *handlers.ProductHandlers, u *handlers.UserHan
 		api.GET("/users/:id", m.RequireAuth(), n.RequireAdmin(), u.GetUserByID)
 		api.PUT("/users/:id/role", m.RequireAuth(), n.RequireAdmin(), u.UpdateUserRole)
 		api.DELETE("/user/:id", m.RequireAuth(), n.RequireAdmin(), u.DeleteUserByID)
+		// Carts
+		api.GET("/cart", m.RequireAuth(), c.GetUserCart)
+		api.POST("/cart", m.RequireAuth(), c.AddToCart)
+		api.PUT("/cart/items/:item_id", m.RequireAuth(), c.UpdateCartItem)
+		api.DELETE("/cart/items/:item_id", m.RequireAuth(), c.RemoveFromCart)
+		api.DELETE("/cart", m.RequireAuth(), c.ClearCart)
 	}
 	r.GET("/auth/google", a.GoogleLogin)
 	r.GET("/auth/google/callback", a.GoogleCallback)

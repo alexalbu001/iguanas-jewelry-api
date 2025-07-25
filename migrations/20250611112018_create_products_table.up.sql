@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS products (
     price DECIMAL(10,2) NOT NULL CHECK (price >= 0),
     description TEXT,
     category VARCHAR(36) NOT NULL,
+    stock_quantity INTEGER NOT NULL,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL
 );

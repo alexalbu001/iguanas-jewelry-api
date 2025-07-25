@@ -27,7 +27,7 @@ type ProductsStore struct {
 
 func (h *ProductsStore) GetAll() ([]models.Product, error) {
 	sql := `
-	SELECT id, name, price, description, category, created_at, updated_at
+	SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
 	FROM products
 	ORDER BY created_at DESC
 	`
@@ -46,6 +46,7 @@ func (h *ProductsStore) GetAll() ([]models.Product, error) {
 			&product.Price,
 			&product.Description,
 			&product.Category,
+			&product.StockQuantity,
 			&product.CreatedAt,
 			&product.UpdatedAt,
 		)
@@ -63,7 +64,7 @@ func (h *ProductsStore) GetAll() ([]models.Product, error) {
 
 func (h *ProductsStore) GetByID(id string) (models.Product, error) {
 	sql := `
-SELECT id, name, price, description, category, created_at, updated_at
+SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
 FROM products
 WHERE id=$1
 `
@@ -77,6 +78,7 @@ WHERE id=$1
 		&product.Price,
 		&product.Description,
 		&product.Category,
+		&product.StockQuantity,
 		&product.CreatedAt,
 		&product.UpdatedAt,
 	)
@@ -102,11 +104,11 @@ func (h *ProductsStore) Add(product models.Product) (models.Product, error) {
 	product.UpdatedAt = time.Now() // Set update time
 
 	sql := `
-	INSERT INTO products (id, name, price, description, category, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	INSERT INTO products (id, name, price, description, category, stock_quantity, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
-	_, err := h.dbpool.Exec(context.Background(), sql, product.ID, product.Name, product.Price, product.Description, product.Category, product.CreatedAt, product.UpdatedAt)
+	_, err := h.dbpool.Exec(context.Background(), sql, product.ID, product.Name, product.Price, product.Description, product.Category, product.StockQuantity, product.CreatedAt, product.UpdatedAt)
 	if err != nil {
 		return models.Product{}, fmt.Errorf("Product could not be created, %w", err)
 	}
@@ -120,11 +122,11 @@ func (h *ProductsStore) Update(id string, product models.Product) (models.Produc
 	// product.CreatedAt
 	sql := `
 	UPDATE products
-	SET name=$1, price=$2, description=$3, category=$4, updated_at=$5
-	WHERE id=$6
+	SET name=$1, price=$2, description=$3, category=$4, stock_quantity=$5, updated_at=$6
+	WHERE id=$7
 	RETURNING id, created_at`
 
-	row := h.dbpool.QueryRow(context.Background(), sql, product.Name, product.Price, product.Description, product.Category, product.UpdatedAt, id)
+	row := h.dbpool.QueryRow(context.Background(), sql, product.Name, product.Price, product.Description, product.Category, product.StockQuantity, product.UpdatedAt, id)
 
 	var newProduct models.Product
 
@@ -139,6 +141,7 @@ func (h *ProductsStore) Update(id string, product models.Product) (models.Produc
 	newProduct.Price = product.Price
 	newProduct.Description = product.Description
 	newProduct.Category = product.Category
+	newProduct.StockQuantity = product.StockQuantity
 	newProduct.UpdatedAt = product.UpdatedAt
 
 	return newProduct, nil

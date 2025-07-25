@@ -4,12 +4,21 @@ import (
 	"net/http"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
-	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/gin-gonic/gin"
 )
 
+type UsersStore interface {
+	GetUsers() ([]models.User, error)
+	GetUserByGoogleID(googleID string) (models.User, error)
+	GetUserByID(id string) (models.User, error)
+	AddUser(user models.User) (models.User, error)
+	DeleteUser(id string) error
+	UpdateUser(id string, user models.User) (models.User, error)
+	UpdateUserRole(id string, role string) error
+}
+
 type UserHandlers struct {
-	User *store.UsersStore
+	User UsersStore
 }
 
 func (u *UserHandlers) GetUsers(c *gin.Context) {
@@ -81,7 +90,7 @@ func (u *UserHandlers) UpdateUserRole(c *gin.Context) {
 	})
 }
 
-func NewUserHandler(userStore *store.UsersStore) *UserHandlers {
+func NewUserHandler(userStore UsersStore) *UserHandlers {
 	return &UserHandlers{
 		User: userStore,
 	}
