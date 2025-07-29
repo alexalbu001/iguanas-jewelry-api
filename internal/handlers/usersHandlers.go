@@ -4,25 +4,22 @@ import (
 	"net/http"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
-type UsersStore interface {
-	GetUsers() ([]models.User, error)
-	GetUserByGoogleID(googleID string) (models.User, error)
-	GetUserByID(id string) (models.User, error)
-	AddUser(user models.User) (models.User, error)
-	DeleteUser(id string) error
-	UpdateUser(id string, user models.User) (models.User, error)
-	UpdateUserRole(id string, role string) error
+type UserHandlers struct {
+	UserService *service.UserService
 }
 
-type UserHandlers struct {
-	User UsersStore
+func NewUserHandler(userService *service.UserService) *UserHandlers {
+	return &UserHandlers{
+		UserService: userService,
+	}
 }
 
 func (u *UserHandlers) GetUsers(c *gin.Context) {
-	users, err := u.User.GetUsers()
+	users, err := u.UserService.GetUsers()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
@@ -32,7 +29,7 @@ func (u *UserHandlers) GetUsers(c *gin.Context) {
 
 func (u *UserHandlers) GetUserByID(c *gin.Context) {
 	id := c.Param("id")
-	user, err := u.User.GetUserByID(id)
+	user, err := u.UserService.GetUserByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -49,7 +46,7 @@ func (u *UserHandlers) UpdateUserByID(c *gin.Context) {
 		return
 	}
 
-	updatedUser, err := u.User.UpdateUser(id, user)
+	updatedUser, err := u.UserService.UpdateUserByID(id, user)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -59,7 +56,7 @@ func (u *UserHandlers) UpdateUserByID(c *gin.Context) {
 
 func (u *UserHandlers) DeleteUserByID(c *gin.Context) {
 	id := c.Param("id")
-	err := u.User.DeleteUser(id)
+	err := u.UserService.DeleteUserByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -78,7 +75,7 @@ func (u *UserHandlers) UpdateUserRole(c *gin.Context) {
 		return
 	}
 
-	err := u.User.UpdateUserRole(id, roleUpdate.Role)
+	err := u.UserService.UpdateUserRole(id, roleUpdate.Role)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -88,10 +85,4 @@ func (u *UserHandlers) UpdateUserRole(c *gin.Context) {
 		"user_id":  id,
 		"new_role": roleUpdate.Role,
 	})
-}
-
-func NewUserHandler(userStore UsersStore) *UserHandlers {
-	return &UserHandlers{
-		User: userStore,
-	}
 }

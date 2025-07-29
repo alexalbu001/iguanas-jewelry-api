@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx"
@@ -37,11 +36,11 @@ type OrdersStore interface {
 
 type OrdersService struct {
 	orderStore    OrdersStore
-	productsStore handlers.ProductsStore
-	cartsStore    handlers.CartsStore
+	productsStore ProductsStore
+	cartsStore    CartsStore
 }
 
-func NewOrderService(orderStore OrdersStore, productStore handlers.ProductsStore, cartsStore handlers.CartsStore) OrdersService {
+func NewOrderService(orderStore OrdersStore, productStore ProductsStore, cartsStore CartsStore) OrdersService {
 	return OrdersService{
 		orderStore:    orderStore,
 		productsStore: productStore,

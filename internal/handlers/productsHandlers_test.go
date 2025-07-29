@@ -11,6 +11,7 @@ import (
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -72,7 +73,9 @@ func TestGetProducts(t *testing.T) {
 			{ID: uuid.NewString(), Name: "Silver Necklace", Price: 10.99, Description: "Nice silver necklace", Category: "earings", CreatedAt: time.Now(), UpdatedAt: time.Now()},
 		},
 	}
-	testProductHandlers := handlers.NewProductHandlers(mockStore)
+
+	testProductsService := service.NewProductsService(mockStore)
+	testProductHandlers := handlers.NewProductHandlers(testProductsService)
 	// Create fake HTTP response recorder
 	w := httptest.NewRecorder()
 	// Create fake Gin context
@@ -118,7 +121,8 @@ func TestPostProduct(t *testing.T) {
 	req := httptest.NewRequest("POST", "/products", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 
-	testProductHandlers := handlers.NewProductHandlers(mockStore)
+	testProductsService := service.NewProductsService(mockStore)
+	testProductHandlers := handlers.NewProductHandlers(testProductsService)
 	// Create fake HTTP response recorder
 	w := httptest.NewRecorder()
 	// Create fake Gin context
@@ -156,7 +160,8 @@ func TestGetProductByID(t *testing.T) {
 	}
 	req := httptest.NewRequest("GET", "/products/known-id", nil)
 
-	testProductHandlers := handlers.NewProductHandlers(mockStore)
+	testProductsService := service.NewProductsService(mockStore)
+	testProductHandlers := handlers.NewProductHandlers(testProductsService)
 	// Create fake HTTP response recorder
 	w := httptest.NewRecorder()
 	// Create fake Gin context
@@ -196,7 +201,8 @@ func TestUpdateProductByID(t *testing.T) {
 		t.Fatalf("failed to marshall products into JSON: %v", err)
 	}
 
-	testProductHandlers := handlers.NewProductHandlers(mockStore)
+	testProductsService := service.NewProductsService(mockStore)
+	testProductHandlers := handlers.NewProductHandlers(testProductsService)
 	req := httptest.NewRequest("PUT", "/products/known-id", bytes.NewReader(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -240,7 +246,8 @@ func TestDeleteProductByID(t *testing.T) {
 		},
 	}
 
-	testProductHandlers := handlers.NewProductHandlers(mockStore)
+	testProductsService := service.NewProductsService(mockStore)
+	testProductHandlers := handlers.NewProductHandlers(testProductsService)
 
 	req := httptest.NewRequest("DELETE", "/products/:id", nil)
 	w := httptest.NewRecorder()

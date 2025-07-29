@@ -11,6 +11,7 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
 	"github.com/alexalbu001/iguanas-jewelry/internal/middleware"
 	"github.com/alexalbu001/iguanas-jewelry/internal/routes"
+	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -43,7 +44,7 @@ func main() {
 	}
 	rdb := redis.NewClient(opt)
 
-	//create store
+	//create repository layer
 	productStore := store.NewProductStore(dbpool)
 
 	userStore := store.NewUsersStore(dbpool)
@@ -52,11 +53,16 @@ func main() {
 
 	sessionsStore := auth.NewSessionStore(rdb)
 
+	//create service layer
+	productsService := service.NewProductsService(productStore)
+	userService := service.NewUserService(userStore)
+	cartsService := service.NewCartsService(cartsStore, productStore)
 	//create handlers with store
-	productHandlers := handlers.NewProductHandlers(productStore)
-	userHandlers := handlers.NewUserHandler(userStore)
+
+	productHandlers := handlers.NewProductHandlers(productsService)
+	userHandlers := handlers.NewUserHandler(userService)
 	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore)
-	cartHandlers := handlers.NewCartsHandler(cartsStore, productStore)
+	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)

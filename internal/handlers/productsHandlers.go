@@ -4,23 +4,22 @@ import (
 	"net/http"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
-type ProductsStore interface {
-	GetAll() ([]models.Product, error)
-	GetByID(id string) (models.Product, error)
-	Add(product models.Product) (models.Product, error)
-	Update(id string, product models.Product) (models.Product, error)
-	Delete(id string) error
+type ProductHandlers struct {
+	ProductHandler *service.ProductsService
 }
 
-type ProductHandlers struct {
-	Store ProductsStore
+func NewProductHandlers(productHandler *service.ProductsService) *ProductHandlers {
+	return &ProductHandlers{
+		ProductHandler: productHandler,
+	}
 }
 
 func (h *ProductHandlers) GetProducts(c *gin.Context) {
-	products, err := h.Store.GetAll()
+	products, err := h.ProductHandler.GetProducts()
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
@@ -34,7 +33,7 @@ func (h *ProductHandlers) PostProducts(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		return
 	}
-	createdProduct, err := h.Store.Add(newProduct)
+	createdProduct, err := h.ProductHandler.PostProduct(newProduct)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		return
@@ -51,14 +50,14 @@ func (h *ProductHandlers) PostProducts(c *gin.Context) {
 // 		return
 // 	}
 
-// 	store.Products = append(store.Products, newProduct)
+// 	ProductHandler.Products = append(ProductHandler.Products, newProduct)
 // 	c.IndentedJSON(http.StatusCreated, newProduct)
 // }
 
 func (h *ProductHandlers) GetProductByID(c *gin.Context) {
 	id := c.Param("id")
 
-	foundProduct, err := h.Store.GetByID(id)
+	foundProduct, err := h.ProductHandler.GetProductByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -69,7 +68,7 @@ func (h *ProductHandlers) GetProductByID(c *gin.Context) {
 // func GetProductByID(c *gin.Context) {
 // 	id := c.Param("id")
 
-// 	for _, p := range store.Products {
+// 	for _, p := range ProductHandler.Products {
 // 		if p.ID == id {
 // 			c.IndentedJSON(http.StatusOK, p)
 // 			return
@@ -85,7 +84,7 @@ func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		return
 	}
-	updatedProduct, err := h.Store.Update(id, newProduct)
+	updatedProduct, err := h.ProductHandler.UpdateProductByID(id, newProduct)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -96,7 +95,7 @@ func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 // func UpdateProductsByID(c *gin.Context) {
 // 	id := c.Param("id")
 
-// 	for _, p := range store.Products {
+// 	for _, p := range ProductHandler.Products {
 // 		if p.ID == id {
 
 // 		}
@@ -105,7 +104,7 @@ func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 
 func (h *ProductHandlers) DeleteProductByID(c *gin.Context) {
 	id := c.Param("id")
-	err := h.Store.Delete(id)
+	err := h.ProductHandler.DeleteProductByID(id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -116,9 +115,3 @@ func (h *ProductHandlers) DeleteProductByID(c *gin.Context) {
 // func DeleteProductsByID(c *gin.Context) {
 
 // }
-
-func NewProductHandlers(store ProductsStore) *ProductHandlers {
-	return &ProductHandlers{
-		Store: store,
-	}
-}
