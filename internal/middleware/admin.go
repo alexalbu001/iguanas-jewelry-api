@@ -20,7 +20,7 @@ func (a *AdminMiddleware) RequireAdmin() gin.HandlerFunc {
 			return
 		}
 
-		user, err := a.User.GetUserByID(userID.(string))
+		user, err := a.User.GetUserByID(c.Request.Context(), userID.(string))
 		if err != nil {
 			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
 			return

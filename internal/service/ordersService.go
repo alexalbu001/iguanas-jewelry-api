@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -22,16 +23,16 @@ type ShippingInfo struct {
 }
 
 type OrdersStore interface {
-	InsertOrder(order models.Order) error
-	InsertOrderTx(order models.Order, tx pgx.Tx) error
-	InsertOrderItem(orderItem models.OrderItem) error
-	InsertOrderItemTx(orderItem models.OrderItem, tx pgx.Tx) error
-	InsertOrderItemBulk(orderItems []models.OrderItem) error
-	InsertOrderItemBulkTx(orderItems []models.OrderItem, tx pgx.Tx) error
-	GetOrderByID(orderID string) (models.Order, error)
-	GetOrderItems(orderID string) ([]models.OrderItem, error)
-	GetUsersOrders(userID string) ([]models.Order, error)
-	UpdateOrderStatus(status, orderID string) error
+	InsertOrder(ctx context.Context, order models.Order) error
+	InsertOrderTx(ctx context.Context, order models.Order, tx pgx.Tx) error
+	InsertOrderItem(ctx context.Context, orderItem models.OrderItem) error
+	InsertOrderItemTx(ctx context.Context, orderItem models.OrderItem, tx pgx.Tx) error
+	InsertOrderItemBulk(ctx context.Context, orderItems []models.OrderItem) error
+	InsertOrderItemBulkTx(ctx context.Context, orderItems []models.OrderItem, tx pgx.Tx) error
+	GetOrderByID(ctx context.Context, orderID string) (models.Order, error)
+	GetOrderItems(ctx context.Context, orderID string) ([]models.OrderItem, error)
+	GetUsersOrders(ctx context.Context, userID string) ([]models.Order, error)
+	UpdateOrderStatus(ctx context.Context, status, orderID string) error
 }
 
 type OrdersService struct {
@@ -48,12 +49,12 @@ func NewOrderService(orderStore OrdersStore, productStore ProductsStore, cartsSt
 	}
 }
 
-func (o *OrdersService) CreateOrderFromCart(userID string, shippingInfo ShippingInfo) (models.Order, error) {
-	cart, err := o.cartsStore.GetOrCreateCartByUserID(userID) //Get cart
+func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, shippingInfo ShippingInfo) (models.Order, error) {
+	cart, err := o.cartsStore.GetOrCreateCartByUserID(ctx, userID) //Get cart
 	if err != nil {
 		return models.Order{}, fmt.Errorf("Error fetching cart from user %s: %w", userID, err)
 	}
-	cartItems, err := o.cartsStore.GetCartItems(cart.ID) // Get cart items
+	cartItems, err := o.cartsStore.GetCartItems(ctx, cart.ID) // Get cart items
 	if err != nil {
 		return models.Order{}, fmt.Errorf("Error fetching cart items %w", err)
 	}
@@ -64,7 +65,7 @@ func (o *OrdersService) CreateOrderFromCart(userID string, shippingInfo Shipping
 	var orderItems []models.OrderItem //create empty order items slice
 	subtotal := 0.0
 	for _, item := range cartItems { //  traverse cart items
-		product, err := o.productsStore.GetByID(item.ProductID) // get each product from cart items
+		product, err := o.productsStore.GetByID(ctx, item.ProductID) // get each product from cart items
 		if err != nil {
 			return models.Order{}, fmt.Errorf("Error fetching products: %w", err)
 		}
@@ -104,15 +105,15 @@ func (o *OrdersService) CreateOrderFromCart(userID string, shippingInfo Shipping
 	}
 	// err = store.BeginTransaction(o.orderStore, o.cartsStore)
 
-	err = o.orderStore.InsertOrder(order)
+	err = o.orderStore.InsertOrder(ctx, order)
 	if err != nil {
 		return models.Order{}, fmt.Errorf("Error creating order: %w", err)
 	}
-	err = o.orderStore.InsertOrderItemBulk(orderItems)
+	err = o.orderStore.InsertOrderItemBulk(ctx, orderItems)
 	if err != nil {
 		return models.Order{}, fmt.Errorf("Error inserting order items: %w", err)
 	}
-	err = o.cartsStore.EmptyCart(userID)
+	err = o.cartsStore.EmptyCart(ctx, userID)
 	if err != nil {
 		return models.Order{}, fmt.Errorf("Error clearing cart: %w", err)
 	}

@@ -40,7 +40,7 @@ func (d *CartsHandlers) GetUserCart(c *gin.Context) { //Get cart and items from 
 		return
 	}
 
-	cartSummary, err := d.CartsService.GetUserCart(userID.(string))
+	cartSummary, err := d.CartsService.GetUserCart(c.Request.Context(), userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
@@ -66,7 +66,7 @@ func (d *CartsHandlers) AddToCart(c *gin.Context) {
 		return
 	}
 
-	addToCartResult, err := d.CartsService.AddToCart(userID.(string), addToCartRequest.ProductID, addToCartRequest.Quantity)
+	addToCartResult, err := d.CartsService.AddToCart(c.Request.Context(), userID.(string), addToCartRequest.ProductID, addToCartRequest.Quantity)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
@@ -94,7 +94,7 @@ func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 		return
 	}
 
-	cartOperationResult, err := d.CartsService.UpdateCartItemQuantity(userID.(string), itemID, quantityRequest.Quantity)
+	cartOperationResult, err := d.CartsService.UpdateCartItemQuantity(c.Request.Context(), userID.(string), itemID, quantityRequest.Quantity)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
@@ -118,7 +118,7 @@ func (d *CartsHandlers) RemoveFromCart(c *gin.Context) {
 
 	itemID := c.Param("item_id")
 
-	cartOperationResult, err := d.CartsService.RemoveFromCart(userID.(string), itemID)
+	cartOperationResult, err := d.CartsService.RemoveFromCart(c.Request.Context(), userID.(string), itemID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
@@ -140,7 +140,7 @@ func (d *CartsHandlers) ClearCart(c *gin.Context) {
 		return
 	}
 
-	cartOperationResult, err := d.CartsService.ClearCart(userID.(string))
+	cartOperationResult, err := d.CartsService.ClearCart(c.Request.Context(), userID.(string))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return

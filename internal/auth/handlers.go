@@ -1,7 +1,6 @@
 package auth
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"os"
@@ -43,13 +42,13 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	token, err := conf.Exchange(context.Background(), code)
+	token, err := conf.Exchange(c.Request.Context(), code)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error:": "Could not exchange with google"})
 		return
 	}
 
-	client := conf.Client(context.Background(), token)
+	client := conf.Client(c.Request.Context(), token)
 	resp, _ := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	c.SetCookie("state", "", -1, "/", "", false, false)
 	defer resp.Body.Close()
@@ -62,14 +61,14 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	user, err := h.Store.GetUserByGoogleID(userInfo.ID)
+	user, err := h.Store.GetUserByGoogleID(c.Request.Context(), userInfo.ID)
 	if err != nil {
 		newUser := models.User{
 			GoogleID: userInfo.ID,
 			Email:    userInfo.Email,
 			Name:     userInfo.Name,
 		}
-		user, err = h.Store.AddUser(newUser)
+		user, err = h.Store.AddUser(c.Request.Context(), newUser)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Could not create user"})
 			return
@@ -77,7 +76,7 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 	}
 	if user.Email == os.Getenv("ADMIN_EMAIL") && user.Role != "admin" {
 		// Update user role in database
-		err = h.Store.UpdateUserRole(user.ID, "admin")
+		err = h.Store.UpdateUserRole(c.Request.Context(), user.ID, "admin")
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Could not create admin user"})
 			return

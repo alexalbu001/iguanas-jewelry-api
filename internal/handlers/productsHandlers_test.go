@@ -2,6 +2,7 @@ package handlers_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -20,11 +21,11 @@ type MockProductStore struct {
 	store []models.Product
 }
 
-func (m *MockProductStore) GetAll() ([]models.Product, error) {
+func (m *MockProductStore) GetAll(ctx context.Context) ([]models.Product, error) {
 	return m.store, nil
 }
 
-func (m *MockProductStore) GetByID(id string) (models.Product, error) {
+func (m *MockProductStore) GetByID(ctx context.Context, id string) (models.Product, error) {
 
 	for _, product := range m.store {
 		if id == product.ID {
@@ -34,7 +35,7 @@ func (m *MockProductStore) GetByID(id string) (models.Product, error) {
 	return models.Product{}, fmt.Errorf("Product not found: %s", id)
 }
 
-func (m *MockProductStore) Add(product models.Product) (models.Product, error) {
+func (m *MockProductStore) Add(ctx context.Context, product models.Product) (models.Product, error) {
 	product.ID = uuid.NewString()
 	product.CreatedAt = time.Now()
 	product.UpdatedAt = time.Now()
@@ -43,7 +44,7 @@ func (m *MockProductStore) Add(product models.Product) (models.Product, error) {
 	return product, nil
 }
 
-func (m *MockProductStore) Update(id string, product models.Product) (models.Product, error) {
+func (m *MockProductStore) Update(ctx context.Context, id string, product models.Product) (models.Product, error) {
 	for index, value := range m.store {
 		if id == value.ID {
 			product.ID = id
@@ -56,7 +57,7 @@ func (m *MockProductStore) Update(id string, product models.Product) (models.Pro
 	return models.Product{}, fmt.Errorf("ID: %s not found", id)
 }
 
-func (m *MockProductStore) Delete(id string) error {
+func (m *MockProductStore) Delete(ctx context.Context, id string) error {
 	for i, value := range m.store {
 		if value.ID == id {
 			m.store = append(m.store[:i], m.store[i+1:]...)

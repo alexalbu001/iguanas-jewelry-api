@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -9,13 +10,13 @@ import (
 )
 
 type CartsStore interface {
-	GetOrCreateCartByUserID(id string) (models.Cart, error)
-	EmptyCart(userID string) error
-	GetCartItemByID(id string) (models.CartItems, error)
-	AddItemToCart(cartID, productID string, quantity int) (models.CartItems, error)
-	GetCartItems(cartID string) ([]models.CartItems, error)
-	UpdateCartItemQuantity(itemID string, newQuantity int) error
-	DeleteCartItem(cartItemID string) error
+	GetOrCreateCartByUserID(ctx context.Context, id string) (models.Cart, error)
+	EmptyCart(ctx context.Context, userID string) error
+	GetCartItemByID(ctx context.Context, id string) (models.CartItems, error)
+	AddItemToCart(ctx context.Context, cartID, productID string, quantity int) (models.CartItems, error)
+	GetCartItems(ctx context.Context, cartID string) ([]models.CartItems, error)
+	UpdateCartItemQuantity(ctx context.Context, itemID string, newQuantity int) error
+	DeleteCartItem(ctx context.Context, cartItemID string) error
 }
 
 type CartsService struct {
@@ -52,20 +53,20 @@ func NewCartsService(cartsStore CartsStore, productsStore ProductsStore) *CartsS
 	}
 }
 
-func (c *CartsService) GetUserCart(userID string) (CartSummary, error) {
+func (c *CartsService) GetUserCart(ctx context.Context, userID string) (CartSummary, error) {
 	err := uuid.Validate(userID)
 	if err != nil {
 		return CartSummary{}, fmt.Errorf("Invalid user ID")
 	}
 
-	cart, err := c.CartsStore.GetOrCreateCartByUserID(userID)
+	cart, err := c.CartsStore.GetOrCreateCartByUserID(ctx, userID)
 	if err != nil {
 		return CartSummary{}, fmt.Errorf("Error retrieving or creating cart: %w", err)
 	}
 	if cart.ID == "" {
 		return CartSummary{}, fmt.Errorf("Cart ID is empty")
 	}
-	cartItems, err := c.CartsStore.GetCartItems(cart.ID)
+	cartItems, err := c.CartsStore.GetCartItems(ctx, cart.ID)
 	if err != nil {
 		return CartSummary{}, fmt.Errorf("Failed to retrieve cart items: %w", err)
 	}
@@ -75,9 +76,9 @@ func (c *CartsService) GetUserCart(userID string) (CartSummary, error) {
 	var warnings []string
 
 	for _, cartItem := range cartItems {
-		cartProducts, err := c.ProductsStore.GetByID(cartItem.ProductID)
+		cartProducts, err := c.ProductsStore.GetByID(ctx, cartItem.ProductID)
 		if err != nil {
-			deleteErr := c.CartsStore.DeleteCartItem(cartItem.ID)
+			deleteErr := c.CartsStore.DeleteCartItem(ctx, cartItem.ID)
 			if deleteErr != nil {
 				// Log it but don't fail the whole request
 				log.Printf("Failed to delete invalid cart item %s: %v", cartItem.ID, deleteErr)
@@ -103,14 +104,14 @@ func (c *CartsService) GetUserCart(userID string) (CartSummary, error) {
 	return cartSummary, nil
 }
 
-func (c *CartsService) AddToCart(userID, productID string, quantity int) (CartOperationResult, error) {
+func (c *CartsService) AddToCart(ctx context.Context, userID, productID string, quantity int) (CartOperationResult, error) {
 
-	product, err := c.ProductsStore.GetByID(productID)
+	product, err := c.ProductsStore.GetByID(ctx, productID)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Error retrieving product with id : %s, : %w", productID, err)
 	}
 	if quantity > product.StockQuantity {
-		currentCart, err := c.GetUserCart(userID)
+		currentCart, err := c.GetUserCart(ctx, userID)
 		if err != nil {
 			return CartOperationResult{}, err // System error getting cart
 		}
@@ -121,17 +122,17 @@ func (c *CartsService) AddToCart(userID, productID string, quantity int) (CartOp
 		}, nil
 
 	}
-	cart, err := c.CartsStore.GetOrCreateCartByUserID(userID)
+	cart, err := c.CartsStore.GetOrCreateCartByUserID(ctx, userID)
 	if err != nil {
 		return CartOperationResult{}, err // System error getting cart
 	}
 
-	_, err = c.CartsStore.AddItemToCart(cart.ID, productID, quantity)
+	_, err = c.CartsStore.AddItemToCart(ctx, cart.ID, productID, quantity)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Error adding product: %s to cart: %w", productID, err)
 	}
 
-	updatedCartSummary, err := c.GetUserCart(userID)
+	updatedCartSummary, err := c.GetUserCart(ctx, userID)
 	if err != nil {
 		return CartOperationResult{}, err
 	}
@@ -143,19 +144,19 @@ func (c *CartsService) AddToCart(userID, productID string, quantity int) (CartOp
 	}, nil
 }
 
-func (c *CartsService) UpdateCartItemQuantity(userID, itemID string, quantity int) (CartOperationResult, error) {
-	cartItem, err := c.CartsStore.GetCartItemByID(itemID)
+func (c *CartsService) UpdateCartItemQuantity(ctx context.Context, userID, itemID string, quantity int) (CartOperationResult, error) {
+	cartItem, err := c.CartsStore.GetCartItemByID(ctx, itemID)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Failed to retrieve cart item: %s , %w", itemID, err)
 	}
 
-	product, err := c.ProductsStore.GetByID(cartItem.ProductID)
+	product, err := c.ProductsStore.GetByID(ctx, cartItem.ProductID)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Failed to retrieve product: %s , %w", cartItem.ProductID, err)
 	}
 
 	if quantity > product.StockQuantity {
-		cartSummary, err := c.GetUserCart(userID)
+		cartSummary, err := c.GetUserCart(ctx, userID)
 		if err != nil {
 			return CartOperationResult{}, fmt.Errorf("Failed to retrieve user cart: %s , %w", userID, err)
 		}
@@ -167,12 +168,12 @@ func (c *CartsService) UpdateCartItemQuantity(userID, itemID string, quantity in
 	}
 
 	if quantity == 0 {
-		err = c.CartsStore.DeleteCartItem(itemID)
+		err = c.CartsStore.DeleteCartItem(ctx, itemID)
 		if err != nil {
 			return CartOperationResult{}, fmt.Errorf("Failed to delete cart item: %s , %w", itemID, err)
 		}
 
-		cartSummary, err := c.GetUserCart(userID)
+		cartSummary, err := c.GetUserCart(ctx, userID)
 		if err != nil {
 			return CartOperationResult{}, fmt.Errorf("Failed to retrieve user cart: %s , %w", userID, err)
 		}
@@ -183,12 +184,12 @@ func (c *CartsService) UpdateCartItemQuantity(userID, itemID string, quantity in
 		}, nil
 	}
 
-	err = c.CartsStore.UpdateCartItemQuantity(itemID, quantity)
+	err = c.CartsStore.UpdateCartItemQuantity(ctx, itemID, quantity)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Failed to update item quantity: %w", err)
 	}
 
-	currentCartSummary, err := c.GetUserCart(userID)
+	currentCartSummary, err := c.GetUserCart(ctx, userID)
 	if err != nil {
 		return CartOperationResult{}, err
 	}
@@ -200,18 +201,18 @@ func (c *CartsService) UpdateCartItemQuantity(userID, itemID string, quantity in
 	}, nil
 }
 
-func (c *CartsService) RemoveFromCart(userID, itemID string) (CartOperationResult, error) {
-	cartItem, err := c.CartsStore.GetCartItemByID(itemID)
+func (c *CartsService) RemoveFromCart(ctx context.Context, userID, itemID string) (CartOperationResult, error) {
+	cartItem, err := c.CartsStore.GetCartItemByID(ctx, itemID)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Failed to retrieve cart item: %s , %w", itemID, err)
 	}
 
-	err = c.CartsStore.DeleteCartItem(cartItem.ID)
+	err = c.CartsStore.DeleteCartItem(ctx, cartItem.ID)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Failed to delete cart item: %s , %w", itemID, err)
 	}
 
-	cartSummary, err := c.GetUserCart(userID)
+	cartSummary, err := c.GetUserCart(ctx, userID)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Failed to retrieve user cart: %s , %w", userID, err)
 	}
@@ -223,13 +224,13 @@ func (c *CartsService) RemoveFromCart(userID, itemID string) (CartOperationResul
 	}, nil
 }
 
-func (c *CartsService) ClearCart(userID string) (CartOperationResult, error) {
-	err := c.CartsStore.EmptyCart(userID)
+func (c *CartsService) ClearCart(ctx context.Context, userID string) (CartOperationResult, error) {
+	err := c.CartsStore.EmptyCart(ctx, userID)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Failed to clear cart: %w", err)
 	}
 
-	cartSummary, err := c.GetUserCart(userID)
+	cartSummary, err := c.GetUserCart(ctx, userID)
 	if err != nil {
 		return CartOperationResult{}, fmt.Errorf("Failed to retrieve user cart: %s , %w", userID, err)
 	}

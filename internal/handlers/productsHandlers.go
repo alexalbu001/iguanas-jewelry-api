@@ -19,7 +19,7 @@ func NewProductHandlers(productHandler *service.ProductsService) *ProductHandler
 }
 
 func (h *ProductHandlers) GetProducts(c *gin.Context) {
-	products, err := h.ProductHandler.GetProducts()
+	products, err := h.ProductHandler.GetProducts(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
@@ -33,7 +33,7 @@ func (h *ProductHandlers) PostProducts(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		return
 	}
-	createdProduct, err := h.ProductHandler.PostProduct(newProduct)
+	createdProduct, err := h.ProductHandler.PostProduct(c.Request.Context(), newProduct)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		return
@@ -57,7 +57,7 @@ func (h *ProductHandlers) PostProducts(c *gin.Context) {
 func (h *ProductHandlers) GetProductByID(c *gin.Context) {
 	id := c.Param("id")
 
-	foundProduct, err := h.ProductHandler.GetProductByID(id)
+	foundProduct, err := h.ProductHandler.GetProductByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -84,7 +84,7 @@ func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
 		return
 	}
-	updatedProduct, err := h.ProductHandler.UpdateProductByID(id, newProduct)
+	updatedProduct, err := h.ProductHandler.UpdateProductByID(c.Request.Context(), id, newProduct)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -104,7 +104,7 @@ func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 
 func (h *ProductHandlers) DeleteProductByID(c *gin.Context) {
 	id := c.Param("id")
-	err := h.ProductHandler.DeleteProductByID(id)
+	err := h.ProductHandler.DeleteProductByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return

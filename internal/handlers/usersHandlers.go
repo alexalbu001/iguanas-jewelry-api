@@ -19,7 +19,7 @@ func NewUserHandler(userService *service.UserService) *UserHandlers {
 }
 
 func (u *UserHandlers) GetUsers(c *gin.Context) {
-	users, err := u.UserService.GetUsers()
+	users, err := u.UserService.GetUsers(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
 		return
@@ -29,7 +29,7 @@ func (u *UserHandlers) GetUsers(c *gin.Context) {
 
 func (u *UserHandlers) GetUserByID(c *gin.Context) {
 	id := c.Param("id")
-	user, err := u.UserService.GetUserByID(id)
+	user, err := u.UserService.GetUserByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -46,7 +46,7 @@ func (u *UserHandlers) UpdateUserByID(c *gin.Context) {
 		return
 	}
 
-	updatedUser, err := u.UserService.UpdateUserByID(id, user)
+	updatedUser, err := u.UserService.UpdateUserByID(c.Request.Context(), id, user)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -56,7 +56,7 @@ func (u *UserHandlers) UpdateUserByID(c *gin.Context) {
 
 func (u *UserHandlers) DeleteUserByID(c *gin.Context) {
 	id := c.Param("id")
-	err := u.UserService.DeleteUserByID(id)
+	err := u.UserService.DeleteUserByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return
@@ -75,7 +75,7 @@ func (u *UserHandlers) UpdateUserRole(c *gin.Context) {
 		return
 	}
 
-	err := u.UserService.UpdateUserRole(id, roleUpdate.Role)
+	err := u.UserService.UpdateUserRole(c.Request.Context(), id, roleUpdate.Role)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
 		return

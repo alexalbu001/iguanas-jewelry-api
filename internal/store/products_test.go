@@ -51,7 +51,7 @@ func TestGetByID(t *testing.T) {
 	defer testDB.Exec(context.Background(),
 		"DELETE FROM products WHERE id=$1", testID)
 
-	result, err := testStore.GetByID(testID)
+	result, err := testStore.GetByID(context.Background(), testID)
 	if err != nil {
 		t.Fatalf("Error running GetByID: %v", err)
 	}
@@ -81,7 +81,7 @@ func createTestProduct(t *testing.T, name string, price float64, stockQuantity i
 }
 
 func TestGetAll(t *testing.T) {
-	empty, err := testStore.GetAll()
+	empty, err := testStore.GetAll(context.Background())
 	if err != nil {
 		t.Fatalf("Error running GetAll function %v", err)
 	}
@@ -96,7 +96,7 @@ func TestGetAll(t *testing.T) {
 	// Clean up
 	defer testDB.Exec(context.Background(), "DELETE FROM products WHERE id IN ($1, $2, $3)", Product1, Product2, Product3)
 
-	products, err := testStore.GetAll()
+	products, err := testStore.GetAll(context.Background())
 	if err != nil {
 		t.Fatalf("Error running GetAll function %v", err)
 	}
@@ -128,12 +128,12 @@ func TestAdd(t *testing.T) {
 		StockQuantity: 1,
 	}
 
-	product, err := testStore.Add(testProduct)
+	product, err := testStore.Add(context.Background(), testProduct)
 	if err != nil {
 		t.Fatalf("Error running Add: %v", err)
 	}
 	defer testDB.Exec(context.Background(), "DELETE FROM products WHERE id=$1", product.ID)
-	dbProduct, err := testStore.GetByID(product.ID)
+	dbProduct, err := testStore.GetByID(context.Background(), product.ID)
 	if err != nil {
 		t.Fatalf("Error executing GetByID %v", err)
 	}
@@ -155,12 +155,12 @@ func TestDelete(t *testing.T) {
 	Product3 := createTestProduct(t, "Test3", 14, 1)
 	defer testDB.Exec(context.Background(), "DELETE FROM products WHERE id IN ($1, $2, $3)", Product1, Product2, Product3)
 
-	err := testStore.Delete(Product3)
+	err := testStore.Delete(context.Background(), Product3)
 	if err != nil {
 		t.Fatalf("Error executing Delete %v", err)
 	}
 
-	products, err := testStore.GetAll()
+	products, err := testStore.GetAll(context.Background())
 	if err != nil {
 		t.Fatalf("Error running GetAll function %v", err)
 	}
@@ -170,13 +170,13 @@ func TestDelete(t *testing.T) {
 	if products[0].Name != "Test2" {
 		t.Errorf("Expected first product name inside DB to be 'Test2', got %s instead", products[0].Name)
 	}
-	_, err = testStore.GetByID(Product3)
+	_, err = testStore.GetByID(context.Background(), Product3)
 	if err == nil {
 		t.Errorf("Expected error, got nothing")
 	}
 
 	emptyId := ""
-	shouldError := testStore.Delete(emptyId)
+	shouldError := testStore.Delete(context.Background(), emptyId)
 	if shouldError == nil {
 		t.Errorf("Expected error when deleting with empty ID, got nil")
 	}

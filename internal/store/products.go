@@ -25,13 +25,13 @@ type ProductsStore struct {
 // We check for errors after iteration with rows.Err()
 // The order of columns in your Scan() call must match the order of columns in your SELECT statement. PGX doesn't do any mapping by column name.
 
-func (h *ProductsStore) GetAll() ([]models.Product, error) {
+func (h *ProductsStore) GetAll(ctx context.Context) ([]models.Product, error) {
 	sql := `
 	SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
 	FROM products
 	ORDER BY created_at DESC
 	`
-	rows, err := h.dbpool.Query(context.Background(), sql)
+	rows, err := h.dbpool.Query(ctx, sql)
 	if err != nil {
 		return nil, fmt.Errorf("Error querying products: %w", err)
 	}
@@ -62,14 +62,14 @@ func (h *ProductsStore) GetAll() ([]models.Product, error) {
 	// return h.store
 }
 
-func (h *ProductsStore) GetByID(id string) (models.Product, error) {
+func (h *ProductsStore) GetByID(ctx context.Context, id string) (models.Product, error) {
 	sql := `
 SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
 FROM products
 WHERE id=$1
 `
 
-	row := h.dbpool.QueryRow(context.Background(), sql, id)
+	row := h.dbpool.QueryRow(ctx, sql, id)
 
 	var product models.Product
 	err := row.Scan(
@@ -98,7 +98,7 @@ WHERE id=$1
 	// return models.Product{}, fmt.Errorf("Product not found: %s", id)
 }
 
-func (h *ProductsStore) Add(product models.Product) (models.Product, error) {
+func (h *ProductsStore) Add(ctx context.Context, product models.Product) (models.Product, error) {
 	product.ID = uuid.NewString()
 	product.CreatedAt = time.Now() // Set creation time
 	product.UpdatedAt = time.Now() // Set update time
@@ -108,7 +108,7 @@ func (h *ProductsStore) Add(product models.Product) (models.Product, error) {
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
-	_, err := h.dbpool.Exec(context.Background(), sql, product.ID, product.Name, product.Price, product.Description, product.Category, product.StockQuantity, product.CreatedAt, product.UpdatedAt)
+	_, err := h.dbpool.Exec(ctx, sql, product.ID, product.Name, product.Price, product.Description, product.Category, product.StockQuantity, product.CreatedAt, product.UpdatedAt)
 	if err != nil {
 		return models.Product{}, fmt.Errorf("Product could not be created, %w", err)
 	}
@@ -117,7 +117,7 @@ func (h *ProductsStore) Add(product models.Product) (models.Product, error) {
 	// return product, nil
 }
 
-func (h *ProductsStore) Update(id string, product models.Product) (models.Product, error) {
+func (h *ProductsStore) Update(ctx context.Context, id string, product models.Product) (models.Product, error) {
 	product.UpdatedAt = time.Now()
 	// product.CreatedAt
 	sql := `
@@ -126,7 +126,7 @@ func (h *ProductsStore) Update(id string, product models.Product) (models.Produc
 	WHERE id=$7
 	RETURNING id, created_at`
 
-	row := h.dbpool.QueryRow(context.Background(), sql, product.Name, product.Price, product.Description, product.Category, product.StockQuantity, product.UpdatedAt, id)
+	row := h.dbpool.QueryRow(ctx, sql, product.Name, product.Price, product.Description, product.Category, product.StockQuantity, product.UpdatedAt, id)
 
 	var newProduct models.Product
 
@@ -157,12 +157,12 @@ func (h *ProductsStore) Update(id string, product models.Product) (models.Produc
 	// return models.Product{}, fmt.Errorf("ID: %s not found", id)
 }
 
-func (h *ProductsStore) Delete(id string) error {
+func (h *ProductsStore) Delete(ctx context.Context, id string) error {
 	sql := `
 	DELETE FROM products
 	WHERE id=$1`
 
-	commandTag, err := h.dbpool.Exec(context.Background(), sql, id)
+	commandTag, err := h.dbpool.Exec(ctx, sql, id)
 	if err != nil {
 		return fmt.Errorf("Error deleting product: %w", err)
 	}

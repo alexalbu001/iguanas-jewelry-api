@@ -16,14 +16,14 @@ type CartsStore struct {
 	tx     pgx.Tx
 }
 
-func (c *CartsStore) GetOrCreateCartByUserID(id string) (models.Cart, error) {
+func (c *CartsStore) GetOrCreateCartByUserID(ctx context.Context, id string) (models.Cart, error) {
 	sql := `
  SELECT id, user_id, created_at, updated_at
  FROM carts
  WHERE user_id=$1
  `
 
-	row := c.dbpool.QueryRow(context.Background(), sql, id)
+	row := c.dbpool.QueryRow(ctx, sql, id)
 
 	var cart models.Cart
 
@@ -42,7 +42,7 @@ VALUES ($1, $2, $3, $4)
 `
 			cartID := uuid.NewString()
 			now := time.Now()
-			_, err = c.dbpool.Exec(context.Background(), sql, cartID, id, now, now)
+			_, err = c.dbpool.Exec(ctx, sql, cartID, id, now, now)
 			if err != nil {
 				return models.Cart{}, fmt.Errorf("Cart could not be created, %w", err)
 			}
@@ -59,13 +59,13 @@ VALUES ($1, $2, $3, $4)
 	return cart, nil
 }
 
-func (c *CartsStore) EmptyCart(userID string) error {
+func (c *CartsStore) EmptyCart(ctx context.Context, userID string) error {
 	sql := `
 	DELETE FROM cart_items
 	WHERE cart_id IN ( SELECT id FROM carts WHERE user_id=$1)
 	`
 
-	_, err := c.dbpool.Exec(context.Background(), sql, userID)
+	_, err := c.dbpool.Exec(ctx, sql, userID)
 	if err != nil {
 		return fmt.Errorf("Error deleting cart from user %s: %w", userID, err)
 	}
@@ -73,14 +73,14 @@ func (c *CartsStore) EmptyCart(userID string) error {
 	return nil
 }
 
-func (c *CartsStore) GetCartItemByID(id string) (models.CartItems, error) {
+func (c *CartsStore) GetCartItemByID(ctx context.Context, id string) (models.CartItems, error) {
 	sql := `
 	SELECT id, product_id, cart_id, quantity, created_at, updated_at
 	FROM cart_items
 	WHERE id=$1
 	`
 
-	row := c.dbpool.QueryRow(context.Background(), sql, id)
+	row := c.dbpool.QueryRow(ctx, sql, id)
 
 	var cartItem models.CartItems
 	err := row.Scan(
@@ -100,9 +100,9 @@ func (c *CartsStore) GetCartItemByID(id string) (models.CartItems, error) {
 	return cartItem, nil
 }
 
-func (c *CartsStore) AddItemToCart(cartID, productID string, quantity int) (models.CartItems, error) {
+func (c *CartsStore) AddItemToCart(ctx context.Context, cartID, productID string, quantity int) (models.CartItems, error) {
 	sql := `SELECT id, cart_id, product_id, quantity, created_at, updated_at FROM cart_items WHERE cart_id=$1 AND product_id=$2`
-	row := c.dbpool.QueryRow(context.Background(), sql, cartID, productID)
+	row := c.dbpool.QueryRow(ctx, sql, cartID, productID)
 	var foundCartItem models.CartItems
 	err := row.Scan(
 		&foundCartItem.ID,
@@ -129,7 +129,7 @@ func (c *CartsStore) AddItemToCart(cartID, productID string, quantity int) (mode
 			sql := `
 		INSERT INTO cart_items (id, cart_id, product_id, quantity, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6)`
-			_, err = c.dbpool.Exec(context.Background(), sql, ID, cartID, productID, quantity, createdAt, updatedAt)
+			_, err = c.dbpool.Exec(ctx, sql, ID, cartID, productID, quantity, createdAt, updatedAt)
 			if err != nil {
 				return models.CartItems{}, fmt.Errorf("Cart item could not be created, %w", err)
 			}
@@ -144,14 +144,14 @@ func (c *CartsStore) AddItemToCart(cartID, productID string, quantity int) (mode
 	RETURNING id, quantity, updated_at`
 	foundCartItem.UpdatedAt = time.Now()
 	foundCartItem.Quantity = foundCartItem.Quantity + quantity
-	_, err = c.dbpool.Exec(context.Background(), sql, foundCartItem.Quantity, foundCartItem.UpdatedAt, foundCartItem.ID)
+	_, err = c.dbpool.Exec(ctx, sql, foundCartItem.Quantity, foundCartItem.UpdatedAt, foundCartItem.ID)
 	if err != nil {
 		return models.CartItems{}, fmt.Errorf("Error updating cart items: %w", err)
 	}
 	return foundCartItem, nil
 }
 
-func (c *CartsStore) GetCartItems(cartID string) ([]models.CartItems, error) {
+func (c *CartsStore) GetCartItems(ctx context.Context, cartID string) ([]models.CartItems, error) {
 	sql := `
 	SELECT id, product_id, cart_id, quantity, created_at, updated_at
 	FROM cart_items
@@ -159,7 +159,7 @@ func (c *CartsStore) GetCartItems(cartID string) ([]models.CartItems, error) {
 	ORDER BY created_at DESC
 	`
 
-	rows, err := c.dbpool.Query(context.Background(), sql, cartID)
+	rows, err := c.dbpool.Query(ctx, sql, cartID)
 	if err != nil {
 		return nil, fmt.Errorf("Error querying cart items: %w", err)
 	}
@@ -187,8 +187,8 @@ func (c *CartsStore) GetCartItems(cartID string) ([]models.CartItems, error) {
 	return cartItems, nil
 }
 
-func (c *CartsStore) UpdateCartItemQuantity(itemID string, newQuantity int) error {
-	cartItem, err := c.GetCartItemByID(itemID)
+func (c *CartsStore) UpdateCartItemQuantity(ctx context.Context, itemID string, newQuantity int) error {
+	cartItem, err := c.GetCartItemByID(ctx, itemID)
 	if err != nil {
 		return fmt.Errorf("Error finding item with itemID %s, %w", itemID, err)
 	}
@@ -198,7 +198,7 @@ func (c *CartsStore) UpdateCartItemQuantity(itemID string, newQuantity int) erro
 	WHERE product_id=$1
 	RETURNING stock_quantity`
 
-	row := c.dbpool.QueryRow(context.Background(), sql, cartItem.ProductID)
+	row := c.dbpool.QueryRow(ctx, sql, cartItem.ProductID)
 	var product models.Product
 	err = row.Scan(
 		&product.ID,
@@ -216,7 +216,7 @@ func (c *CartsStore) UpdateCartItemQuantity(itemID string, newQuantity int) erro
 	SET quantity=$1
 	WHERE id=$2
 	`
-		_, err = c.dbpool.Exec(context.Background(), sql, newQuantity, itemID)
+		_, err = c.dbpool.Exec(ctx, sql, newQuantity, itemID)
 		if err != nil {
 			return fmt.Errorf("Error updating item %s quantity: %w", itemID, err)
 		}
@@ -225,13 +225,13 @@ func (c *CartsStore) UpdateCartItemQuantity(itemID string, newQuantity int) erro
 	return fmt.Errorf("Available stock for this product is %d, the requested quantity is %d", product.StockQuantity, newQuantity)
 }
 
-func (c *CartsStore) DeleteCartItem(cartItemID string) error {
+func (c *CartsStore) DeleteCartItem(ctx context.Context, cartItemID string) error {
 	sql := `
 	DELETE FROM cart_items
 	WHERE id=$1
 	`
 
-	commandTag, err := c.dbpool.Exec(context.Background(), sql, cartItemID)
+	commandTag, err := c.dbpool.Exec(ctx, sql, cartItemID)
 	if err != nil {
 		return fmt.Errorf("Error deleting cart item: %w", err)
 	}
