@@ -18,6 +18,12 @@ type ProductsStore struct {
 	dbpool *pgxpool.Pool
 }
 
+func NewProductStore(connection *pgxpool.Pool) *ProductsStore { // constructor
+	return &ProductsStore{
+		dbpool: connection,
+	}
+}
+
 // This function demonstrates several important patterns when working with PGX:
 // We use pool.Query() to execute a SELECT statement that returns multiple rows
 // We use defer rows.Close() to ensure resources are cleaned up when the function exits
@@ -60,6 +66,46 @@ func (h *ProductsStore) GetAll(ctx context.Context) ([]models.Product, error) {
 	}
 	return products, nil
 	// return h.store
+}
+
+func (h *ProductsStore) GetByIDBatch(ctx context.Context, productIDs []string) (map[string]models.Product, error) {
+
+	sql := `
+	SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
+	FROM products
+	WHERE id=ANY($1)
+	`
+
+	rows, err := h.dbpool.Query(ctx, sql, productIDs)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying products: %w", err)
+	}
+	defer rows.Close()
+
+	var productsMap map[string]models.Product
+
+	for rows.Next() {
+		var product models.Product
+		err := rows.Scan(
+			&product.ID,
+			&product.Name,
+			&product.Price,
+			&product.Description,
+			&product.Category,
+			&product.StockQuantity,
+			&product.CreatedAt,
+			&product.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("Error scanning products row: %w", err)
+		}
+
+		productsMap[product.ID] = product
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("Error iterating product rows: %w", err)
+	}
+	return productsMap, nil
 }
 
 func (h *ProductsStore) GetByID(ctx context.Context, id string) (models.Product, error) {
@@ -178,10 +224,4 @@ func (h *ProductsStore) Delete(ctx context.Context, id string) error {
 	// 	}
 	// }
 	// return fmt.Errorf("ID: %s not found", id)
-}
-
-func NewProductStore(connection *pgxpool.Pool) *ProductsStore { // constructor
-	return &ProductsStore{
-		dbpool: connection,
-	}
 }

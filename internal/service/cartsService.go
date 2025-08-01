@@ -6,12 +6,15 @@ import (
 	"log"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry/internal/utils"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type CartsStore interface {
 	GetOrCreateCartByUserID(ctx context.Context, id string) (models.Cart, error)
 	EmptyCart(ctx context.Context, userID string) error
+	EmptyCartTx(ctx context.Context, userID string, tx pgx.Tx) error
 	GetCartItemByID(ctx context.Context, id string) (models.CartItems, error)
 	AddItemToCart(ctx context.Context, cartID, productID string, quantity int) (models.CartItems, error)
 	GetCartItems(ctx context.Context, cartID string) ([]models.CartItems, error)
@@ -75,9 +78,18 @@ func (c *CartsService) GetUserCart(ctx context.Context, userID string) (CartSumm
 	cartSummary.Items = []CartItemSummary{}
 	var warnings []string
 
+	productIDs, err := utils.ExtractProductIDs(cartItems)
+	if err != nil {
+		return CartSummary{}, fmt.Errorf("Failed to extract product IDs: %w", err)
+	}
+	productMap, err := c.ProductsStore.GetByIDBatch(ctx, productIDs)
+	if err != nil {
+		return CartSummary{}, fmt.Errorf("Failed to get products by ids: %w", err)
+	}
+
 	for _, cartItem := range cartItems {
-		cartProducts, err := c.ProductsStore.GetByID(ctx, cartItem.ProductID)
-		if err != nil {
+		product, exists := productMap[cartItem.ProductID]
+		if !exists {
 			deleteErr := c.CartsStore.DeleteCartItem(ctx, cartItem.ID)
 			if deleteErr != nil {
 				// Log it but don't fail the whole request
@@ -88,11 +100,11 @@ func (c *CartsService) GetUserCart(ctx context.Context, userID string) (CartSumm
 		}
 		cartItemSummary := CartItemSummary{
 			ID:          cartItem.ID,
-			ProductID:   cartProducts.ID,
-			ProductName: cartProducts.Name,
-			Price:       cartProducts.Price,
+			ProductID:   product.ID,
+			ProductName: product.Name,
+			Price:       product.Price,
 			Quantity:    cartItem.Quantity,
-			Subtotal:    cartProducts.Price * float64(cartItem.Quantity),
+			Subtotal:    product.Price * float64(cartItem.Quantity),
 		}
 
 		cartSummary.Items = append(cartSummary.Items, cartItemSummary)

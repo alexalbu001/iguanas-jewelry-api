@@ -86,7 +86,7 @@ func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
 		return
 	}
-	itemID := c.Param("item_id")
+	itemID := c.Param("id")
 
 	var quantityRequest QuantityRequest
 	if err := c.ShouldBindBodyWithJSON(&quantityRequest); err != nil {
@@ -116,7 +116,7 @@ func (d *CartsHandlers) RemoveFromCart(c *gin.Context) {
 		return
 	}
 
-	itemID := c.Param("item_id")
+	itemID := c.Param("id")
 
 	cartOperationResult, err := d.CartsService.RemoveFromCart(c.Request.Context(), userID.(string), itemID)
 	if err != nil {

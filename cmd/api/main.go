@@ -13,6 +13,7 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/routes"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
+	"github.com/alexalbu001/iguanas-jewelry/internal/transaction"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -53,21 +54,27 @@ func main() {
 
 	sessionsStore := auth.NewSessionStore(rdb)
 
+	ordersStore := store.NewOrdersStore(dbpool, cartsStore, productStore)
+
 	//create service layer
+	tx := transaction.NewTxManager(dbpool)
+
 	productsService := service.NewProductsService(productStore)
 	userService := service.NewUserService(userStore)
 	cartsService := service.NewCartsService(cartsStore, productStore)
+	ordersService := service.NewOrderService(ordersStore, productStore, cartsStore, tx)
 	//create handlers with store
 
 	productHandlers := handlers.NewProductHandlers(productsService)
 	userHandlers := handlers.NewUserHandler(userService)
 	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
+	ordersHandlers := handlers.NewOrdersHandlers(&ordersService)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 
-	routes.SetupRoutes(r, productHandlers, userHandlers, cartHandlers, authHandlers, authMiddleware, adminMiddleware)
+	routes.SetupRoutes(r, productHandlers, userHandlers, cartHandlers, ordersHandlers, authHandlers, authMiddleware, adminMiddleware)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

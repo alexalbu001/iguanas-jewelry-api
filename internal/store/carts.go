@@ -13,7 +13,12 @@ import (
 
 type CartsStore struct {
 	dbpool *pgxpool.Pool
-	tx     pgx.Tx
+}
+
+func NewCartsStore(connection *pgxpool.Pool) *CartsStore {
+	return &CartsStore{
+		dbpool: connection,
+	}
 }
 
 func (c *CartsStore) GetOrCreateCartByUserID(ctx context.Context, id string) (models.Cart, error) {
@@ -66,6 +71,20 @@ func (c *CartsStore) EmptyCart(ctx context.Context, userID string) error {
 	`
 
 	_, err := c.dbpool.Exec(ctx, sql, userID)
+	if err != nil {
+		return fmt.Errorf("Error deleting cart from user %s: %w", userID, err)
+	}
+
+	return nil
+}
+
+func (c *CartsStore) EmptyCartTx(ctx context.Context, userID string, tx pgx.Tx) error {
+	sql := `
+	DELETE FROM cart_items
+	WHERE cart_id IN ( SELECT id FROM carts WHERE user_id=$1)
+	`
+
+	_, err := tx.Exec(ctx, sql, userID)
 	if err != nil {
 		return fmt.Errorf("Error deleting cart from user %s: %w", userID, err)
 	}
@@ -240,10 +259,4 @@ func (c *CartsStore) DeleteCartItem(ctx context.Context, cartItemID string) erro
 		return fmt.Errorf("Product not found with id: %s", cartItemID)
 	}
 	return nil
-}
-
-func NewCartsStore(connection *pgxpool.Pool) *CartsStore {
-	return &CartsStore{
-		dbpool: connection,
-	}
 }

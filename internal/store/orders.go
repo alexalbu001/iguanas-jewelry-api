@@ -12,7 +12,6 @@ import (
 
 type OrdersStore struct {
 	dbpool *pgxpool.Pool
-	tx     pgx.Tx
 	// carts    *CartsStore
 	// products *ProductsStore
 }
@@ -167,6 +166,45 @@ func (o *OrdersStore) GetOrderItems(ctx context.Context, orderID string) ([]mode
 	return orderItems, nil
 }
 
+func (o *OrdersStore) GetOrderItemsBatch(ctx context.Context, orderID []string) (map[string][]models.OrderItem, error) {
+	sql := `
+	SELECT id, order_id, product_id, quantity, price, created_at, updated_at
+	FROM order_items
+	WHERE order_id=ANY($1)
+	ORDER BY order_id, created_at
+	`
+
+	rows, err := o.dbpool.Query(ctx, sql, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying order items: %w", err)
+	}
+
+	defer rows.Close()
+
+	var ordersItemsMap map[string][]models.OrderItem // each orderID will have multiple orderItems
+
+	for rows.Next() {
+		var orderItem models.OrderItem
+		err := rows.Scan(
+			&orderItem.ID,
+			&orderItem.OrderID,
+			&orderItem.ProductID,
+			&orderItem.Quantity,
+			&orderItem.Price,
+			&orderItem.CreatedAt,
+			&orderItem.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("Error scanning order items row: %w", err)
+		}
+		ordersItemsMap[orderItem.OrderID] = append(ordersItemsMap[orderItem.OrderID], orderItem)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("Error iterating order items rows: %w", err)
+	}
+	return ordersItemsMap, nil
+}
+
 func (o *OrdersStore) GetUsersOrders(ctx context.Context, userID string) ([]models.Order, error) {
 	sql := `
 SELECT id, user_id, total_amount, status, shipping_name, shipping_email, shipping_phone, shipping_address_line_1, shipping_address_line_2, shipping_city, shipping_state, shipping_postal_code, shipping_country, created_at, updated_at
@@ -224,4 +262,89 @@ func (o *OrdersStore) UpdateOrderStatus(ctx context.Context, status, orderID str
 		return fmt.Errorf("Order not found with id: %s", orderID)
 	}
 	return nil
+}
+
+// func (o *OrdersStore) UpdateShippingInfo(ctx context.Context, )
+
+func (o *OrdersStore) GetAllOrders(ctx context.Context) ([]models.Order, error) {
+	sql := `
+	SELECT id, user_id, total_amount, status, shipping_name, shipping_email, shipping_phone, shipping_address_line_1, shipping_address_line_2, shipping_city, shipping_state, shipping_postal_code, shipping_country, created_at, updated_at
+	FROM orders
+	ORDER by user_id, created_at 
+	`
+
+	rows, err := o.dbpool.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving orders: %w", err)
+	}
+	defer rows.Close()
+
+	var orders []models.Order
+	for rows.Next() {
+		var order models.Order
+		err := rows.Scan(
+			&order.ID,
+			&order.UserID,
+			&order.TotalAmount,
+			&order.Status,
+			&order.ShippingName,
+			&order.ShippingEmail,
+			&order.ShippingPhone,
+			&order.ShippingAddressLine1,
+			&order.ShippingAddressLine2,
+			&order.ShippingCity,
+			&order.ShippingState,
+			&order.ShippingPostalCode,
+			&order.ShippingCountry,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("Error scanning orders: %w", err)
+		}
+		orders = append(orders, order)
+	}
+
+	return orders, nil
+}
+
+func (o *OrdersStore) GetOrdersByStatus(ctx context.Context, status string) ([]models.Order, error) {
+	sql := `SELECT id, user_id, total_amount, status, shipping_name, shipping_email, shipping_phone, shipping_address_line_1, shipping_address_line_2, shipping_city, shipping_state, shipping_postal_code, shipping_country, created_at, updated_at
+	FROM orders
+	WHERE status=$1
+	ORDER by created_at DESC
+	`
+
+	rows, err := o.dbpool.Query(ctx, sql, status)
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving orders: %w", err)
+	}
+
+	var orders []models.Order
+	for rows.Next() {
+		var order models.Order
+		err := rows.Scan(
+			&order.ID,
+			&order.UserID,
+			&order.TotalAmount,
+			&order.Status,
+			&order.ShippingName,
+			&order.ShippingEmail,
+			&order.ShippingPhone,
+			&order.ShippingAddressLine1,
+			&order.ShippingAddressLine2,
+			&order.ShippingCity,
+			&order.ShippingState,
+			&order.ShippingPostalCode,
+			&order.ShippingCountry,
+			&order.CreatedAt,
+			&order.UpdatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("Error scanning orders: %w", err)
+		}
+		orders = append(orders, order)
+	}
+
+	return orders, nil
 }

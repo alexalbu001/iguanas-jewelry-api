@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -85,4 +86,36 @@ func (u *UserHandlers) UpdateUserRole(c *gin.Context) {
 		"user_id":  id,
 		"new_role": roleUpdate.Role,
 	})
+}
+
+func (u *UserHandlers) GetMyProfile(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	user, err := u.UserService.GetUserByID(c.Request.Context(), userID.(string))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
+		return
+	}
+
+	profileResponse := responses.UserProfileResponse{
+		ID:        user.ID,
+		Name:      user.Name,
+		Email:     user.Email,
+		CreatedAt: user.CreatedAt.String(),
+	}
+	c.JSON(http.StatusOK, profileResponse)
+}
+
+func (u *UserHandlers) DeleteMyAccount(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		return
+	}
+
+	u.UserService.DeleteUserByID(c.Request.Context(), userID.(string))
 }

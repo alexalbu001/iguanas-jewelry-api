@@ -10,6 +10,7 @@ import (
 
 type ProductsStore interface {
 	GetAll(ctx context.Context) ([]models.Product, error)
+	GetByIDBatch(ctx context.Context, productIDs []string) (map[string]models.Product, error)
 	GetByID(ctx context.Context, id string) (models.Product, error)
 	Add(ctx context.Context, product models.Product) (models.Product, error)
 	Update(ctx context.Context, id string, product models.Product) (models.Product, error)
