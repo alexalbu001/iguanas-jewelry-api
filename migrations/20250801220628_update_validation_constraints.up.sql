@@ -1,0 +1,1 @@
+ALTER TABLE cart_items ALTER COLUMN quantity DROP NOT NULL;

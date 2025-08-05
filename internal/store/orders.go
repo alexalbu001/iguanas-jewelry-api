@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -123,7 +124,7 @@ WHERE id=$1
 
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return models.Order{}, fmt.Errorf("Product not found with id: %s", orderID)
+			return models.Order{}, &customerrors.ErrOrderNotFound
 		}
 		return models.Order{}, fmt.Errorf("Error scanning orders: %w", err)
 	}

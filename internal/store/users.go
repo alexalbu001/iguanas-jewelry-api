@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -82,7 +83,7 @@ WHERE id=$1`
 	err := row.Scan(&user.ID, &user.GoogleID, &user.Email, &user.Name, &user.Role, &user.CreatedAt, &user.UpdatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return models.User{}, fmt.Errorf("User not found with id %s", id)
+			return models.User{}, &customerrors.ErrUserNotFound
 		}
 		return models.User{}, fmt.Errorf("Error scanning user row: %w", err)
 	}

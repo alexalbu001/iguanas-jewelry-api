@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -104,15 +105,15 @@ func (c *CartsStore) GetCartItemByID(ctx context.Context, id string) (models.Car
 	var cartItem models.CartItems
 	err := row.Scan(
 		&cartItem.ID,
-		&cartItem.CartID,
 		&cartItem.ProductID,
+		&cartItem.CartID,
 		&cartItem.Quantity,
 		&cartItem.CreatedAt,
 		&cartItem.UpdatedAt,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return models.CartItems{}, fmt.Errorf("Cart item not found with id: %s", id)
+			return models.CartItems{}, &customerrors.ErrCartItemNotFound
 		}
 		return models.CartItems{}, fmt.Errorf("Error scanning products row: %w", err)
 	}
@@ -259,4 +260,26 @@ func (c *CartsStore) DeleteCartItem(ctx context.Context, cartItemID string) erro
 		return fmt.Errorf("Product not found with id: %s", cartItemID)
 	}
 	return nil
+}
+
+func (c *CartsStore) GetCartItemByProductID(ctx context.Context, productID, cartID string) (models.CartItems, error) {
+	sql := `SELECT id, cart_id, product_id, quantity, created_at, updated_at FROM cart_items WHERE cart_id=$1 AND product_id=$2`
+	row := c.dbpool.QueryRow(ctx, sql, cartID, productID)
+
+	var cartItem models.CartItems
+	err := row.Scan(
+		&cartItem.ID,
+		&cartItem.ProductID,
+		&cartItem.CartID,
+		&cartItem.Quantity,
+		&cartItem.CreatedAt,
+		&cartItem.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return models.CartItems{}, &customerrors.ErrCartItemNotFound
+		}
+		return models.CartItems{}, fmt.Errorf("Error scanning products row: %w", err)
+	}
+	return cartItem, nil
 }

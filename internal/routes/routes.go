@@ -41,8 +41,8 @@ func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userH
 		{
 			cart.GET("", cartsHandlers.GetUserCart)
 			cart.POST("", cartsHandlers.AddToCart)
-			cart.PUT("/items/id", cartsHandlers.UpdateCartItem)
-			cart.DELETE("/items/id", cartsHandlers.RemoveFromCart)
+			cart.PUT("/items/:id", cartsHandlers.UpdateCartItem)
+			cart.DELETE("/items/:id", cartsHandlers.RemoveFromCart)
 			cart.DELETE("", cartsHandlers.ClearCart)
 		}
 

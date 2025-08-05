@@ -23,7 +23,7 @@ type AddToCartRequest struct {
 }
 
 type QuantityRequest struct {
-	Quantity int `json:"quantity" binding:"required,min=0"`
+	Quantity int `json:"quantity" binding:"min=0"`
 }
 
 func NewCartsHandler(cartsService *service.CartsService, productsService *service.ProductsService) *CartsHandlers {
@@ -42,7 +42,7 @@ func (d *CartsHandlers) GetUserCart(c *gin.Context) { //Get cart and items from 
 
 	cartSummary, err := d.CartsService.GetUserCart(c.Request.Context(), userID.(string))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -68,15 +68,31 @@ func (d *CartsHandlers) AddToCart(c *gin.Context) {
 
 	addToCartResult, err := d.CartsService.AddToCart(c.Request.Context(), userID.(string), addToCartRequest.ProductID, addToCartRequest.Quantity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
-	response := convertToCartResponse(addToCartResult.CartSummary)
+	var responseItems []responses.CartItemResponse
+	for _, item := range addToCartResult.CartSummary.Items {
+		responseItems = append(responseItems, responses.CartItemResponse{
+			CartItemID:  item.ID,
+			ProductID:   item.ProductID,
+			ProductName: item.ProductName,
+			Price:       item.Price,
+			Quantity:    item.Quantity,
+			Subtotal:    item.Subtotal,
+		})
+	}
+
+	response := responses.CartResponse{
+		CartID: addToCartResult.CartSummary.CartID,
+		Items:  responseItems,
+		Total:  addToCartResult.CartSummary.Total,
+	}
 
 	if addToCartResult.Success {
 		c.JSON(http.StatusCreated, response)
 	} else {
-		c.JSON(http.StatusBadRequest, response)
+		c.JSON(http.StatusBadRequest, response) // Now handles business failures
 	}
 }
 
@@ -96,7 +112,7 @@ func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 
 	cartOperationResult, err := d.CartsService.UpdateCartItemQuantity(c.Request.Context(), userID.(string), itemID, quantityRequest.Quantity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -105,7 +121,7 @@ func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 	if cartOperationResult.Success {
 		c.JSON(http.StatusAccepted, response)
 	} else {
-		c.JSON(http.StatusBadRequest, response)
+		c.JSON(http.StatusBadRequest, response) // its fine
 	}
 }
 

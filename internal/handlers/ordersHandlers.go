@@ -104,7 +104,7 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 
 	orderOperationResult, err := oh.ordersService.CreateOrderFromCart(c.Request.Context(), userID.(string), shippingInfo)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -126,7 +126,7 @@ func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
 
 	orderSummaries, err := oh.ordersService.GetOrdersHistory(c.Request.Context(), userID.(string))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
 	var orderResponses []responses.OrderResponse
@@ -186,22 +186,19 @@ func (oh *OrdersHandlers) CancelOrder(c *gin.Context) {
 		return
 	}
 
-	statusOrderResult, err := oh.ordersService.CancelOrder(c.Request.Context(), userID.(string))
+	orderID := c.Param("id")
+
+	statusOrderResult, err := oh.ordersService.CancelOrder(c.Request.Context(), userID.(string), orderID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
-	cancelOrderResponse := responses.ChangeOrderStatusResponse{
+	c.JSON(http.StatusOK, responses.ChangeOrderStatusResponse{
 		OrderID: statusOrderResult.OrderID,
 		Status:  statusOrderResult.Status,
 		Message: statusOrderResult.Message,
 		Success: statusOrderResult.Success,
-	}
-
-	if !statusOrderResult.Success {
-		c.JSON(http.StatusBadRequest, cancelOrderResponse)
-	}
-	c.JSON(http.StatusAccepted, cancelOrderResponse)
+	})
 }
 
 func (oh *OrdersHandlers) GetOrderInfo(c *gin.Context) {
@@ -215,7 +212,7 @@ func (oh *OrdersHandlers) GetOrderInfo(c *gin.Context) {
 
 	orderSummary, err := oh.ordersService.GetOrderInfo(c.Request.Context(), userID.(string), orderID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
 
@@ -227,7 +224,7 @@ func (oh *OrdersHandlers) GetOrderInfo(c *gin.Context) {
 func (oh *OrdersHandlers) GetAllOrders(c *gin.Context) {
 	orderSummaries, err := oh.ordersService.GetAllOrders(c.Request.Context())
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
 	var ordersResponse []responses.OrderResponse
@@ -246,7 +243,7 @@ func (oh *OrdersHandlers) GetOrdersByStatus(c *gin.Context) {
 	if status != "" {
 		orderSummaries, err := oh.ordersService.GetOrdersByStatus(c.Request.Context(), status)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			c.Error(err)
 			return
 		}
 		var ordersResponse []responses.OrderResponse
@@ -262,7 +259,7 @@ func (oh *OrdersHandlers) GetOrdersByStatus(c *gin.Context) {
 
 		orderSummaries, err := oh.ordersService.GetAllOrders(c.Request.Context())
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+			c.Error(err)
 			return
 		}
 		var ordersResponse []responses.OrderResponse
@@ -284,17 +281,13 @@ func (oh *OrdersHandlers) UpdateOrderStatus(c *gin.Context) {
 
 	statusOrderResult, err := oh.ordersService.UpdateOrderStatus(c.Request.Context(), status, orderID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
-	changeOrderStatusResponse := responses.ChangeOrderStatusResponse{
+	c.JSON(http.StatusAccepted, responses.ChangeOrderStatusResponse{
 		OrderID: statusOrderResult.OrderID,
 		Status:  statusOrderResult.Status,
 		Message: statusOrderResult.Message,
 		Success: statusOrderResult.Success,
-	}
-	if !changeOrderStatusResponse.Success {
-		c.JSON(http.StatusBadRequest, changeOrderStatusResponse)
-	}
-	c.JSON(http.StatusAccepted, changeOrderStatusResponse)
+	})
 }

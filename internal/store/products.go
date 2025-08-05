@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -82,7 +83,10 @@ func (h *ProductsStore) GetByIDBatch(ctx context.Context, productIDs []string) (
 	}
 	defer rows.Close()
 
-	var productsMap map[string]models.Product
+	productsMap := make(map[string]models.Product)
+	if len(productIDs) == 0 {
+		return productsMap, nil
+	}
 
 	for rows.Next() {
 		var product models.Product
@@ -130,7 +134,7 @@ WHERE id=$1
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return models.Product{}, fmt.Errorf("Product not found with id: %s", id)
+			return models.Product{}, &customerrors.ErrProductNotFound
 		}
 		return models.Product{}, fmt.Errorf("Error scanning products row: %w", err)
 	}
@@ -163,6 +167,25 @@ func (h *ProductsStore) Add(ctx context.Context, product models.Product) (models
 	// return product, nil
 }
 
+func (h *ProductsStore) AddTx(ctx context.Context, product models.Product, tx pgx.Tx) (models.Product, error) {
+	product.ID = uuid.NewString()
+	product.CreatedAt = time.Now() // Set creation time
+	product.UpdatedAt = time.Now() // Set update time
+
+	sql := `
+	INSERT INTO products (id, name, price, description, category, stock_quantity, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+	`
+
+	_, err := tx.Exec(ctx, sql, product.ID, product.Name, product.Price, product.Description, product.Category, product.StockQuantity, product.CreatedAt, product.UpdatedAt)
+	if err != nil {
+		return models.Product{}, fmt.Errorf("Product could not be created, %w", err)
+	}
+	return product, nil
+	// h.store = append(h.store, product)
+	// return product, nil
+}
+
 func (h *ProductsStore) Update(ctx context.Context, id string, product models.Product) (models.Product, error) {
 	product.UpdatedAt = time.Now()
 	// product.CreatedAt
@@ -179,7 +202,7 @@ func (h *ProductsStore) Update(ctx context.Context, id string, product models.Pr
 	err := row.Scan(&newProduct.ID, &newProduct.CreatedAt)
 	if err != nil {
 		if err == pgx.ErrNoRows {
-			return models.Product{}, fmt.Errorf("No product with id: %s", id)
+			return models.Product{}, &customerrors.ErrProductNotFound
 		}
 		return models.Product{}, fmt.Errorf("Error scanning row: %w", err)
 	}
@@ -224,4 +247,69 @@ func (h *ProductsStore) Delete(ctx context.Context, id string) error {
 	// 	}
 	// }
 	// return fmt.Errorf("ID: %s not found", id)
+}
+
+func (h *ProductsStore) DeleteTx(ctx context.Context, id string, tx pgx.Tx) error {
+	sql := `
+	DELETE FROM products
+	WHERE id=$1`
+
+	commandTag, err := tx.Exec(ctx, sql, id)
+	if err != nil {
+		return fmt.Errorf("Error deleting product: %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return fmt.Errorf("Product not found with id: %s", id)
+	}
+	return nil
+	// for i, value := range h.store {
+	// 	if id == value.ID {
+	// 		h.store = append(h.store[:i], h.store[i+1:]...)
+	// 		return nil
+	// 	}
+	// }
+	// return fmt.Errorf("ID: %s not found", id)
+}
+
+func (h *ProductsStore) UpdateStock(ctx context.Context, productID string, stockChange int) error {
+	sql := `
+	UPDATE products
+	SET stock_quantity=stock_quantity + $2,
+		updated_at=$3
+	WHERE id=$1
+	AND stock_quantity +$2 >=0
+	`
+
+	result, err := h.dbpool.Exec(ctx, sql, productID, stockChange, time.Now())
+	if err != nil {
+		return fmt.Errorf("Error updateing product stock: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return &customerrors.ErrInsufficientStock // or product not found
+	}
+
+	return nil
+}
+
+func (h *ProductsStore) UpdateStockTx(ctx context.Context, productID string, stockChange int, tx pgx.Tx) error {
+	sql := `
+	UPDATE products
+	SET stock_quantity=stock_quantity + $2,
+		updated_at=$3
+	WHERE id=$1
+	AND stock_quantity +$2 >=0
+	`
+
+	result, err := tx.Exec(ctx, sql, productID, stockChange, time.Now())
+	if err != nil {
+		return fmt.Errorf("Error updateing product stock: %w", err)
+	}
+
+	if result.RowsAffected() == 0 {
+		return &customerrors.ErrInsufficientStock // or product not found
+	}
+
+	return nil
 }

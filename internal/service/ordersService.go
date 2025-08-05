@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/alexalbu001/iguanas-jewelry/internal/transaction"
 	"github.com/alexalbu001/iguanas-jewelry/internal/utils"
@@ -159,7 +160,7 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 		return OrderOperationResult{}, fmt.Errorf("Error fetching cart items %w", err)
 	}
 	if len(cartItems) == 0 { // check if empty
-		return OrderOperationResult{}, fmt.Errorf("cart is empty")
+		return OrderOperationResult{}, &customerrors.ErrCartEmpty
 	}
 	orderID := uuid.NewString()
 	var orderItemsSummary []OrderItemSummary //create empty order items slice
@@ -183,7 +184,7 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 		}
 
 		if product.StockQuantity < item.Quantity { //check stock
-			return OrderOperationResult{}, fmt.Errorf("Not enough products in stock")
+			return OrderOperationResult{}, &customerrors.ErrInsufficientStock
 		}
 		subtotal += float64(item.Quantity) * product.Price //subtotal
 		orderItemID := uuid.NewString()
@@ -321,22 +322,22 @@ func (o *OrdersService) CanBeCancelled(order models.Order) bool {
 	return order.Status == "pending" || order.Status == "paid" || order.Status == "cancelled"
 }
 
-func (o *OrdersService) CancelOrder(ctx context.Context, orderID string) (StatusOrderResult, error) {
+func (o *OrdersService) CancelOrder(ctx context.Context, userID, orderID string) (StatusOrderResult, error) {
+
 	order, err := o.orderStore.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return StatusOrderResult{}, fmt.Errorf("Error fetching order: %w", err)
 	}
 
+	if order.UserID != userID {
+		return StatusOrderResult{}, &customerrors.ErrOrderNotOwned
+	}
+
 	if !o.CanBeCancelled(order) {
-		return StatusOrderResult{
-			OrderID: orderID,
-			Status:  order.Status,
-			Message: "Order cannot be cancelled in current status",
-			Success: false,
-		}, nil
+		return StatusOrderResult{}, &customerrors.ErrCannotCancel
 	}
 	if err := o.orderStore.UpdateOrderStatus(ctx, "cancelled", order.ID); err != nil {
-		return StatusOrderResult{}, fmt.Errorf("Failed to cancel order: %w", err)
+		return StatusOrderResult{}, fmt.Errorf("database error: %w", err)
 
 	}
 	return StatusOrderResult{
@@ -351,10 +352,10 @@ func (o *OrdersService) GetOrderInfo(ctx context.Context, userID, orderID string
 
 	order, err := o.orderStore.GetOrderByID(ctx, orderID)
 	if err != nil {
-		return OrderSummary{}, fmt.Errorf("Error fetching order: %w", err)
+		return OrderSummary{}, fmt.Errorf("Error fetching orders: %w", err)
 	}
 	if userID != order.UserID {
-		return OrderSummary{}, fmt.Errorf("The order doesn't belong to this user")
+		return OrderSummary{}, &customerrors.ErrOrderNotOwned
 	}
 
 	orderItems, err := o.orderStore.GetOrderItems(ctx, order.ID)
@@ -470,12 +471,7 @@ func (o *OrdersService) UpdateOrderStatus(ctx context.Context, status, orderID s
 		return StatusOrderResult{}, fmt.Errorf("Error fetching order: %w", err)
 	}
 	if order.Status == "delivered" || order.Status == "cancelled" {
-		return StatusOrderResult{
-			OrderID: orderID,
-			Status:  order.Status,
-			Message: "Order status cannot be changed from current status",
-			Success: false,
-		}, nil
+		return StatusOrderResult{}, &customerrors.ErrCannotChangeStatus
 	}
 
 	if err := o.orderStore.UpdateOrderStatus(ctx, status, order.ID); err != nil {
