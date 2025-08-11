@@ -69,7 +69,7 @@ func (h *ProductsStore) GetAll(ctx context.Context) ([]models.Product, error) {
 	// return h.store
 }
 
-func (h *ProductsStore) GetByIDBatch(ctx context.Context, productIDs []string) (map[string]models.Product, error) {
+func (h *ProductsStore) GetByIDBatch(ctx context.Context, productIDs []string) (map[string]models.Product, error) { //more effiecient to lookup maps than to iterate over []models.Product
 
 	sql := `
 	SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
@@ -287,7 +287,7 @@ func (h *ProductsStore) UpdateStock(ctx context.Context, productID string, stock
 	}
 
 	if result.RowsAffected() == 0 {
-		return &customerrors.ErrInsufficientStock // or product not found
+		return &customerrors.ErrInsufficientStockStatic // or product not found
 	}
 
 	return nil
@@ -308,7 +308,7 @@ func (h *ProductsStore) UpdateStockTx(ctx context.Context, productID string, sto
 	}
 
 	if result.RowsAffected() == 0 {
-		return &customerrors.ErrInsufficientStock // or product not found
+		return &customerrors.ErrInsufficientStockStatic // or product not found
 	}
 
 	return nil

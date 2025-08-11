@@ -22,14 +22,14 @@ func NewCartsStore(connection *pgxpool.Pool) *CartsStore {
 	}
 }
 
-func (c *CartsStore) GetOrCreateCartByUserID(ctx context.Context, id string) (models.Cart, error) {
+func (c *CartsStore) GetOrCreateCartByUserID(ctx context.Context, userID string) (models.Cart, error) {
 	sql := `
  SELECT id, user_id, created_at, updated_at
  FROM carts
  WHERE user_id=$1
  `
 
-	row := c.dbpool.QueryRow(ctx, sql, id)
+	row := c.dbpool.QueryRow(ctx, sql, userID)
 
 	var cart models.Cart
 
@@ -48,13 +48,13 @@ VALUES ($1, $2, $3, $4)
 `
 			cartID := uuid.NewString()
 			now := time.Now()
-			_, err = c.dbpool.Exec(ctx, sql, cartID, id, now, now)
+			_, err = c.dbpool.Exec(ctx, sql, cartID, userID, now, now)
 			if err != nil {
 				return models.Cart{}, fmt.Errorf("Cart could not be created, %w", err)
 			}
 			createdCart := models.Cart{
 				ID:        cartID,
-				UserID:    id,
+				UserID:    userID,
 				CreatedAt: now,
 				UpdatedAt: now,
 			}
@@ -121,7 +121,10 @@ func (c *CartsStore) GetCartItemByID(ctx context.Context, id string) (models.Car
 }
 
 func (c *CartsStore) AddItemToCart(ctx context.Context, cartID, productID string, quantity int) (models.CartItems, error) {
-	sql := `SELECT id, cart_id, product_id, quantity, created_at, updated_at FROM cart_items WHERE cart_id=$1 AND product_id=$2`
+	sql := `
+	SELECT id, product_id, cart_id, quantity, created_at, updated_at 
+	FROM cart_items 
+	WHERE cart_id=$1 AND product_id=$2`
 	row := c.dbpool.QueryRow(ctx, sql, cartID, productID)
 	var foundCartItem models.CartItems
 	err := row.Scan(
@@ -257,13 +260,17 @@ func (c *CartsStore) DeleteCartItem(ctx context.Context, cartItemID string) erro
 	}
 
 	if commandTag.RowsAffected() == 0 {
-		return fmt.Errorf("Product not found with id: %s", cartItemID)
+		return &customerrors.ErrCartItemNotFound
 	}
 	return nil
 }
 
 func (c *CartsStore) GetCartItemByProductID(ctx context.Context, productID, cartID string) (models.CartItems, error) {
-	sql := `SELECT id, cart_id, product_id, quantity, created_at, updated_at FROM cart_items WHERE cart_id=$1 AND product_id=$2`
+	sql := `
+	SELECT id, cart_id, product_id, quantity, created_at, updated_at 
+	FROM cart_items 
+	WHERE cart_id=$1 AND product_id=$2
+	`
 	row := c.dbpool.QueryRow(ctx, sql, cartID, productID)
 
 	var cartItem models.CartItems

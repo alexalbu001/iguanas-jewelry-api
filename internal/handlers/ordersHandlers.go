@@ -102,19 +102,13 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 		Country:      addShippingInfoToOrder.Country,
 	}
 
-	orderOperationResult, err := oh.ordersService.CreateOrderFromCart(c.Request.Context(), userID.(string), shippingInfo)
+	orderSummary, err := oh.ordersService.CreateOrderFromCart(c.Request.Context(), userID.(string), shippingInfo)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	var orderResponse responses.CreateOrderResponse
-	orderResponse.OrderID = orderOperationResult.OrderSummary.ID
-	orderResponse.Status = orderOperationResult.OrderSummary.Status
-	orderResponse.CreatedDate = orderOperationResult.OrderSummary.CreatedDate.String()
-	orderResponse.Total = orderOperationResult.OrderSummary.Total
-	orderResponse.Message = "success"
-	c.JSON(http.StatusAccepted, orderResponse)
+	c.JSON(http.StatusCreated, orderSummary)
 }
 
 func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
@@ -129,54 +123,8 @@ func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	var orderResponses []responses.OrderResponse
-	for _, orderSummary := range orderSummaries {
-		orderResponse := buildOrderResponse(orderSummary)
-		// var orderItemsResponse []responses.OrderItemResponse
 
-		// for _, orderItem := range orderSummary.OrderItems {
-		// 	OrderItemResponse := responses.OrderItemResponse{
-		// 		ID:          orderItem.ID,
-		// 		OrderID:     orderSummary.ID,
-		// 		ProductID:   orderItem.ProductID,
-		// 		ProductName: orderItem.ProductName,
-		// 		Quantity:    orderItem.Quantity,
-		// 		Price:       orderItem.Price,
-		// 		Subtotal:    orderItem.Subtotal,
-		// 	}
-		// 	orderItemsResponse = append(orderItemsResponse, OrderItemResponse)
-		// }
-
-		// shippingInfo := responses.ShippingInfoResponse{
-		// 	Name:         orderSummary.ShippingName,
-		// 	Email:        orderSummary.ShippingAddress.Email,
-		// 	Phone:        orderSummary.ShippingAddress.Phone,
-		// 	AddressLine1: orderSummary.ShippingAddress.AddressLine1,
-		// 	AddressLine2: orderSummary.ShippingAddress.AddressLine2,
-		// 	City:         orderSummary.ShippingAddress.City,
-		// 	State:        orderSummary.ShippingAddress.State,
-		// 	PostalCode:   orderSummary.ShippingAddress.PostalCode,
-		// 	Country:      orderSummary.ShippingAddress.Country,
-		// }
-		// for _, order := range orderSummaries {
-
-		// 	orderResponse := responses.OrderResponse{
-		// 		OrderID:      order.ID,
-		// 		Status:       order.Status,
-		// 		Total:        order.Total,
-		// 		CreatedDate:  order.CreatedDate.String(),
-		// 		Items:        orderItemsResponse,
-		// 		ShippingInfo: shippingInfo,
-		// 	}
-		orderResponses = append(orderResponses, orderResponse)
-		// }
-
-	}
-	ordersHistoryResponse := responses.OrdersListResponse{
-		Orders: orderResponses,
-	}
-
-	c.JSON(http.StatusOK, ordersHistoryResponse)
+	c.JSON(http.StatusOK, orderSummaries)
 }
 
 func (oh *OrdersHandlers) CancelOrder(c *gin.Context) {
@@ -188,16 +136,14 @@ func (oh *OrdersHandlers) CancelOrder(c *gin.Context) {
 
 	orderID := c.Param("id")
 
-	statusOrderResult, err := oh.ordersService.CancelOrder(c.Request.Context(), userID.(string), orderID)
+	err := oh.ordersService.CancelOrder(c.Request.Context(), userID.(string), orderID)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	c.JSON(http.StatusOK, responses.ChangeOrderStatusResponse{
-		OrderID: statusOrderResult.OrderID,
-		Status:  statusOrderResult.Status,
-		Message: statusOrderResult.Message,
-		Success: statusOrderResult.Success,
+	c.JSON(http.StatusOK, gin.H{
+		"message":  "Order cancelled successfully",
+		"order_id": orderID,
 	})
 }
 
@@ -216,9 +162,7 @@ func (oh *OrdersHandlers) GetOrderInfo(c *gin.Context) {
 		return
 	}
 
-	orderResponse := buildOrderResponse(orderSummary)
-
-	c.JSON(http.StatusOK, orderResponse)
+	c.JSON(http.StatusOK, orderSummary)
 }
 
 func (oh *OrdersHandlers) GetAllOrders(c *gin.Context) {
@@ -227,15 +171,8 @@ func (oh *OrdersHandlers) GetAllOrders(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	var ordersResponse []responses.OrderResponse
-	for _, orderSummary := range orderSummaries {
-		orderResponse := buildOrderResponse(orderSummary)
-		ordersResponse = append(ordersResponse, orderResponse)
-	}
-	ordersHistoryResponse := responses.OrdersListResponse{
-		Orders: ordersResponse,
-	}
-	c.JSON(http.StatusOK, ordersHistoryResponse)
+
+	c.JSON(http.StatusOK, orderSummaries)
 }
 
 func (oh *OrdersHandlers) GetOrdersByStatus(c *gin.Context) {
@@ -246,15 +183,8 @@ func (oh *OrdersHandlers) GetOrdersByStatus(c *gin.Context) {
 			c.Error(err)
 			return
 		}
-		var ordersResponse []responses.OrderResponse
-		for _, orderSummary := range orderSummaries {
-			orderResponse := buildOrderResponse(orderSummary)
-			ordersResponse = append(ordersResponse, orderResponse)
-		}
-		ordersHistoryResponse := responses.OrdersListResponse{
-			Orders: ordersResponse,
-		}
-		c.JSON(http.StatusOK, ordersHistoryResponse)
+
+		c.JSON(http.StatusOK, orderSummaries)
 	} else {
 
 		orderSummaries, err := oh.ordersService.GetAllOrders(c.Request.Context())
@@ -262,15 +192,8 @@ func (oh *OrdersHandlers) GetOrdersByStatus(c *gin.Context) {
 			c.Error(err)
 			return
 		}
-		var ordersResponse []responses.OrderResponse
-		for _, orderSummary := range orderSummaries {
-			orderResponse := buildOrderResponse(orderSummary)
-			ordersResponse = append(ordersResponse, orderResponse)
-		}
-		ordersHistoryResponse := responses.OrdersListResponse{
-			Orders: ordersResponse,
-		}
-		c.JSON(http.StatusOK, ordersHistoryResponse)
+
+		c.JSON(http.StatusOK, orderSummaries)
 	}
 }
 
@@ -279,15 +202,13 @@ func (oh *OrdersHandlers) UpdateOrderStatus(c *gin.Context) {
 	orderID := c.Param("id")
 	status := c.Query("status")
 
-	statusOrderResult, err := oh.ordersService.UpdateOrderStatus(c.Request.Context(), status, orderID)
+	err := oh.ordersService.UpdateOrderStatus(c.Request.Context(), status, orderID)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	c.JSON(http.StatusAccepted, responses.ChangeOrderStatusResponse{
-		OrderID: statusOrderResult.OrderID,
-		Status:  statusOrderResult.Status,
-		Message: statusOrderResult.Message,
-		Success: statusOrderResult.Success,
+	c.JSON(http.StatusAccepted, gin.H{
+		"order_id": orderID,
+		"message":  "Status modified",
 	})
 }

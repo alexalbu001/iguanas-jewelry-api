@@ -66,34 +66,14 @@ func (d *CartsHandlers) AddToCart(c *gin.Context) {
 		return
 	}
 
-	addToCartResult, err := d.CartsService.AddToCart(c.Request.Context(), userID.(string), addToCartRequest.ProductID, addToCartRequest.Quantity)
+	cartSummary, err := d.CartsService.AddToCart(c.Request.Context(), userID.(string), addToCartRequest.ProductID, addToCartRequest.Quantity)
 	if err != nil {
 		c.Error(err)
 		return
 	}
-	var responseItems []responses.CartItemResponse
-	for _, item := range addToCartResult.CartSummary.Items {
-		responseItems = append(responseItems, responses.CartItemResponse{
-			CartItemID:  item.ID,
-			ProductID:   item.ProductID,
-			ProductName: item.ProductName,
-			Price:       item.Price,
-			Quantity:    item.Quantity,
-			Subtotal:    item.Subtotal,
-		})
-	}
+	response := convertToCartResponse(cartSummary)
 
-	response := responses.CartResponse{
-		CartID: addToCartResult.CartSummary.CartID,
-		Items:  responseItems,
-		Total:  addToCartResult.CartSummary.Total,
-	}
-
-	if addToCartResult.Success {
-		c.JSON(http.StatusCreated, response)
-	} else {
-		c.JSON(http.StatusBadRequest, response) // Now handles business failures
-	}
+	c.JSON(http.StatusOK, response)
 }
 
 func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
@@ -110,19 +90,16 @@ func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 		return
 	}
 
-	cartOperationResult, err := d.CartsService.UpdateCartItemQuantity(c.Request.Context(), userID.(string), itemID, quantityRequest.Quantity)
+	cartSummary, err := d.CartsService.UpdateCartItemQuantity(c.Request.Context(), userID.(string), itemID, quantityRequest.Quantity)
 	if err != nil {
 		c.Error(err)
 		return
 	}
 
-	response := convertToCartResponse(cartOperationResult.CartSummary)
+	response := convertToCartResponse(cartSummary)
 
-	if cartOperationResult.Success {
-		c.JSON(http.StatusAccepted, response)
-	} else {
-		c.JSON(http.StatusBadRequest, response) // its fine
-	}
+	c.JSON(http.StatusAccepted, response)
+
 }
 
 func (d *CartsHandlers) RemoveFromCart(c *gin.Context) {
@@ -134,19 +111,15 @@ func (d *CartsHandlers) RemoveFromCart(c *gin.Context) {
 
 	itemID := c.Param("id")
 
-	cartOperationResult, err := d.CartsService.RemoveFromCart(c.Request.Context(), userID.(string), itemID)
+	cartSummary, err := d.CartsService.RemoveFromCart(c.Request.Context(), userID.(string), itemID)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err) //log error
 		return
 	}
 
-	response := convertToCartResponse(cartOperationResult.CartSummary)
+	response := convertToCartResponse(cartSummary)
 
-	if cartOperationResult.Success {
-		c.JSON(http.StatusAccepted, response)
-	} else {
-		c.JSON(http.StatusBadRequest, response)
-	}
+	c.JSON(http.StatusAccepted, response)
 }
 
 func (d *CartsHandlers) ClearCart(c *gin.Context) {
@@ -156,16 +129,12 @@ func (d *CartsHandlers) ClearCart(c *gin.Context) {
 		return
 	}
 
-	cartOperationResult, err := d.CartsService.ClearCart(c.Request.Context(), userID.(string))
+	cartSummary, err := d.CartsService.ClearCart(c.Request.Context(), userID.(string))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"Error": err.Error()})
+		c.Error(err)
 		return
 	}
-	response := convertToCartResponse(cartOperationResult.CartSummary)
+	response := convertToCartResponse(cartSummary)
 
-	if cartOperationResult.Success {
-		c.JSON(http.StatusAccepted, response)
-	} else {
-		c.JSON(http.StatusBadRequest, response)
-	}
+	c.JSON(http.StatusAccepted, response)
 }

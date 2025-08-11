@@ -61,7 +61,7 @@ func main() {
 
 	productsService := service.NewProductsService(productStore)
 	userService := service.NewUserService(userStore)
-	cartsService := service.NewCartsService(cartsStore, productStore)
+	cartsService := service.NewCartsService(cartsStore, productStore, userStore, tx)
 	ordersService := service.NewOrderService(ordersStore, productStore, cartsStore, tx)
 	//create handlers with store
 
@@ -69,7 +69,7 @@ func main() {
 	userHandlers := handlers.NewUserHandler(userService)
 	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
-	ordersHandlers := handlers.NewOrdersHandlers(&ordersService)
+	ordersHandlers := handlers.NewOrdersHandlers(ordersService)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)

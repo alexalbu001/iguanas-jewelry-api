@@ -4,7 +4,6 @@ import (
 	"net/http"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
-	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -101,13 +100,7 @@ func (u *UserHandlers) GetMyProfile(c *gin.Context) {
 		return
 	}
 
-	profileResponse := responses.UserProfileResponse{
-		ID:        user.ID,
-		Name:      user.Name,
-		Email:     user.Email,
-		CreatedAt: user.CreatedAt.String(),
-	}
-	c.JSON(http.StatusOK, profileResponse)
+	c.JSON(http.StatusOK, user)
 }
 
 func (u *UserHandlers) DeleteMyAccount(c *gin.Context) {
@@ -117,5 +110,14 @@ func (u *UserHandlers) DeleteMyAccount(c *gin.Context) {
 		return
 	}
 
-	u.UserService.DeleteUserByID(c.Request.Context(), userID.(string))
+	err := u.UserService.DeleteUserByID(c.Request.Context(), userID.(string))
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusAccepted, gin.H{
+		"user_id": userID,
+		"message": "The account has been deleted",
+	})
 }

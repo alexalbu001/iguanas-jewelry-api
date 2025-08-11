@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/customerrors"
+	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,11 +17,12 @@ func ErrorHandler() gin.HandlerFunc {
 
 		if len(c.Errors) > 0 {
 			err := c.Errors.Last().Err
-			var apiErr *customerrors.APIError
-			if errors.As(err, &apiErr) {
-				c.JSON(apiErr.StatusCode, gin.H{
-					"message": apiErr.Message,
-					"code":    apiErr.Code,
+			var httpErr customerrors.HTTPError
+			if errors.As(err, &httpErr) {
+				c.JSON(httpErr.StatusCode(), gin.H{
+					"message": httpErr.Error(),
+					"code":    httpErr.Code(),
+					"details": httpErr.Details(),
 				})
 			}
 			return

@@ -105,3 +105,19 @@ func (p *ProductsService) DeleteProductByID(ctx context.Context, productID strin
 	}
 	return nil
 }
+
+func (p *ProductsService) UpdateStock(ctx context.Context, productID string, quantity int) error {
+	if productID == "" {
+		return &customerrors.ErrEmptyProductID
+	}
+	err := uuid.Validate(productID)
+	if err != nil {
+		return &customerrors.ErrInvalidProductID
+	}
+
+	err = p.ProductsStore.UpdateStock(ctx, productID, quantity)
+	if err != nil {
+		return fmt.Errorf("Failed to update product stock: %w", err)
+	}
+	return nil
+}

@@ -260,7 +260,7 @@ func (o *OrdersStore) UpdateOrderStatus(ctx context.Context, status, orderID str
 		return fmt.Errorf("Error updating order status: %w", err)
 	}
 	if commandTag.RowsAffected() == 0 {
-		return fmt.Errorf("Order not found with id: %s", orderID)
+		return &customerrors.ErrOrderNotFound
 	}
 	return nil
 }

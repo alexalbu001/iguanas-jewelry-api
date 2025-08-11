@@ -48,8 +48,8 @@ type OrdersService struct {
 	TxManager     transaction.TxManager
 }
 
-func NewOrderService(orderStore OrdersStore, productStore ProductsStore, cartsStore CartsStore, TxManager transaction.TxManager) OrdersService {
-	return OrdersService{
+func NewOrderService(orderStore OrdersStore, productStore ProductsStore, cartsStore CartsStore, TxManager transaction.TxManager) *OrdersService {
+	return &OrdersService{
 		orderStore:    orderStore,
 		productsStore: productStore,
 		cartsStore:    cartsStore,
@@ -150,17 +150,17 @@ func (o *OrdersService) buildOrderSummary(order models.Order, orderItems []model
 	}, nil
 }
 
-func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, shippingInfo ShippingInfo) (OrderOperationResult, error) {
+func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, shippingInfo ShippingInfo) (OrderSummary, error) {
 	cart, err := o.cartsStore.GetOrCreateCartByUserID(ctx, userID) //Get cart
 	if err != nil {
-		return OrderOperationResult{}, fmt.Errorf("Error fetching cart from user %s: %w", userID, err)
+		return OrderSummary{}, fmt.Errorf("Error fetching cart from user %s: %w", userID, err)
 	}
 	cartItems, err := o.cartsStore.GetCartItems(ctx, cart.ID) // Get cart items
 	if err != nil {
-		return OrderOperationResult{}, fmt.Errorf("Error fetching cart items %w", err)
+		return OrderSummary{}, fmt.Errorf("Error fetching cart items %w", err)
 	}
 	if len(cartItems) == 0 { // check if empty
-		return OrderOperationResult{}, &customerrors.ErrCartEmpty
+		return OrderSummary{}, &customerrors.ErrCartEmpty
 	}
 	orderID := uuid.NewString()
 	var orderItemsSummary []OrderItemSummary //create empty order items slice
@@ -170,21 +170,21 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 
 	productIDs, err := utils.ExtractProductIDs(cartItems)
 	if err != nil {
-		return OrderOperationResult{}, fmt.Errorf("Failed to extract product ids: %w", err)
+		return OrderSummary{}, fmt.Errorf("Failed to extract product ids: %w", err)
 	}
 	productMap, err := o.productsStore.GetByIDBatch(ctx, productIDs)
 	if err != nil {
-		return OrderOperationResult{}, fmt.Errorf("Failed to retrieve products by ids: %w", err)
+		return OrderSummary{}, fmt.Errorf("Failed to retrieve products by ids: %w", err)
 	}
 
 	for _, item := range cartItems { //  traverse cart items
 		product, exists := productMap[item.ProductID] // get each product from cart items
 		if !exists {
-			return OrderOperationResult{}, fmt.Errorf("Error fetching products: %w", err)
+			return OrderSummary{}, fmt.Errorf("Error fetching products: %w", err)
 		}
 
 		if product.StockQuantity < item.Quantity { //check stock
-			return OrderOperationResult{}, &customerrors.ErrInsufficientStock
+			return OrderSummary{}, customerrors.NewErrInsufficientStock(item.ProductID, item.Quantity, product.StockQuantity, item.Quantity)
 		}
 		subtotal += float64(item.Quantity) * product.Price //subtotal
 		orderItemID := uuid.NewString()
@@ -266,13 +266,10 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 		return nil
 	})
 	if err != nil {
-		return OrderOperationResult{}, err
+		return OrderSummary{}, err
 	}
 
-	return OrderOperationResult{
-		OrderSummary: orderSummary,
-		Error:        "",
-	}, nil
+	return orderSummary, nil
 }
 
 func (o *OrdersService) GetOrdersHistory(ctx context.Context, userID string) ([]OrderSummary, error) {
@@ -322,30 +319,25 @@ func (o *OrdersService) CanBeCancelled(order models.Order) bool {
 	return order.Status == "pending" || order.Status == "paid" || order.Status == "cancelled"
 }
 
-func (o *OrdersService) CancelOrder(ctx context.Context, userID, orderID string) (StatusOrderResult, error) {
+func (o *OrdersService) CancelOrder(ctx context.Context, userID, orderID string) error {
 
 	order, err := o.orderStore.GetOrderByID(ctx, orderID)
 	if err != nil {
-		return StatusOrderResult{}, fmt.Errorf("Error fetching order: %w", err)
+		return fmt.Errorf("Error fetching order: %w", err)
 	}
 
 	if order.UserID != userID {
-		return StatusOrderResult{}, &customerrors.ErrOrderNotOwned
+		return &customerrors.ErrOrderNotOwned
 	}
 
 	if !o.CanBeCancelled(order) {
-		return StatusOrderResult{}, &customerrors.ErrCannotCancel
+		return &customerrors.ErrCannotCancel
 	}
 	if err := o.orderStore.UpdateOrderStatus(ctx, "cancelled", order.ID); err != nil {
-		return StatusOrderResult{}, fmt.Errorf("database error: %w", err)
+		return fmt.Errorf("Error updating order status: %w", err)
 
 	}
-	return StatusOrderResult{
-		OrderID: orderID,
-		Status:  "cancelled",
-		Message: "Order cancelled successfully",
-		Success: true,
-	}, nil
+	return nil
 }
 
 func (o *OrdersService) GetOrderInfo(ctx context.Context, userID, orderID string) (OrderSummary, error) {
@@ -465,23 +457,18 @@ func (o *OrdersService) GetOrdersByStatus(ctx context.Context, status string) ([
 	return orderSummaries, nil
 }
 
-func (o *OrdersService) UpdateOrderStatus(ctx context.Context, status, orderID string) (StatusOrderResult, error) {
+func (o *OrdersService) UpdateOrderStatus(ctx context.Context, status, orderID string) error {
 	order, err := o.orderStore.GetOrderByID(ctx, orderID)
 	if err != nil {
-		return StatusOrderResult{}, fmt.Errorf("Error fetching order: %w", err)
+		return fmt.Errorf("Error fetching order: %w", err)
 	}
 	if order.Status == "delivered" || order.Status == "cancelled" {
-		return StatusOrderResult{}, &customerrors.ErrCannotChangeStatus
+		return &customerrors.ErrCannotChangeStatus
 	}
 
 	if err := o.orderStore.UpdateOrderStatus(ctx, status, order.ID); err != nil {
-		return StatusOrderResult{}, fmt.Errorf("Failed to cancel order: %w", err)
+		return fmt.Errorf("Failed to cancel order: %w", err)
 
 	}
-	return StatusOrderResult{
-		OrderID: orderID,
-		Status:  status,
-		Message: "Order status changed successfully",
-		Success: true,
-	}, nil
+	return nil
 }
