@@ -179,7 +179,7 @@ func CreateTestCartItems() []models.CartItems {
 	return []models.CartItems{
 		// Items for KnownUserID's cart
 		{
-			ID:        uuid.New().String(),
+			ID:        KnownCartItemID,
 			ProductID: GoldRingID, // $899.99 x 2 = $1799.98
 			CartID:    KnownCartID,
 			Quantity:  2,

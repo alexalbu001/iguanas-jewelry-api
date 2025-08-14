@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/stripe/stripe-go/v82"
 )
 
 func init() {
@@ -44,6 +45,9 @@ func main() {
 		log.Fatal("Unable to connect to redis", err)
 	}
 	rdb := redis.NewClient(opt)
+
+	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+	log.Println("Stripe SDK configured.")
 
 	//create repository layer
 	productStore := store.NewProductStore(dbpool)

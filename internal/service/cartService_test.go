@@ -91,7 +91,7 @@ func TestAddToCart(t *testing.T) {
 
 	// Adding a product thats already in the cart
 
-	cartSummary, err := serviceMockCart.AddToCart(context.Background(), utils.KnownUserID, utils.KnownProductID, 1)
+	cartSummary, err := serviceMockCart.AddToCart(context.Background(), utils.KnownUserID, utils.GoldRingID, 1)
 	if err != nil {
 		t.Fatalf("Failed to add product to cart: %v", err)
 	}
@@ -125,7 +125,7 @@ func TestAddToCart(t *testing.T) {
 
 	// Adding products to another cart untill stock is overflowed
 
-	cartSummary3, err := serviceMockCart.AddToCart(context.Background(), utils.SecondUserID, utils.KnownProductID, 13)
+	cartSummary3, err := serviceMockCart.AddToCart(context.Background(), utils.SecondUserID, utils.GoldRingID, 13)
 	if err != nil {
 		t.Fatalf("Failed to add product to cart: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestAddToCart(t *testing.T) {
 		t.Errorf("Expected total to be 11699.87 got %f instead", cartSummary3.Items[2].Subtotal)
 	}
 
-	cartSummary4, err := serviceMockCart.AddToCart(context.Background(), utils.SecondUserID, utils.KnownProductID, 3)
+	cartSummary4, err := serviceMockCart.AddToCart(context.Background(), utils.SecondUserID, utils.GoldRingID, 3)
 	if err == nil {
 		t.Errorf("Add to product should fail due to quantity %d > stock 15", cartSummary4.Items[2].Quantity)
 	}
@@ -188,7 +188,7 @@ func TestUpdateCartItemQuantity(t *testing.T) {
 		t.Errorf("Expected InsufficientStockError, got %T", err)
 	}
 
-	_, err = serviceMockCart.UpdateCartItemQuantity(context.Background(), utils.KnownUserID, utils.KnownProductID, 16)
+	_, err = serviceMockCart.UpdateCartItemQuantity(context.Background(), utils.KnownUserID, utils.GoldRingID, 16)
 	if err == nil {
 		t.Error("Expected insufficient wrong item id error, got nil")
 	}

@@ -1,0 +1,1 @@
+ALTER TABLE payment ADD COLUMN user_id VARCHAR(50) REFERENCES users(id);

@@ -211,41 +211,41 @@ func (c *CartsStore) GetCartItems(ctx context.Context, cartID string) ([]models.
 }
 
 func (c *CartsStore) UpdateCartItemQuantity(ctx context.Context, itemID string, newQuantity int) error {
-	cartItem, err := c.GetCartItemByID(ctx, itemID)
-	if err != nil {
-		return fmt.Errorf("Error finding item with itemID %s, %w", itemID, err)
-	}
-	sql := `
-	SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
-	FROM products
-	WHERE product_id=$1
-	RETURNING stock_quantity`
+	// cartItem, err := c.GetCartItemByID(ctx, itemID)
+	// if err != nil {
+	// 	return fmt.Errorf("Error finding item with itemID %s, %w", itemID, err)
+	// }
+	// sql := `
+	// SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
+	// FROM products
+	// WHERE product_id=$1
+	// RETURNING stock_quantity`
 
-	row := c.dbpool.QueryRow(ctx, sql, cartItem.ProductID)
-	var product models.Product
-	err = row.Scan(
-		&product.ID,
-		&product.Name,
-		&product.Price,
-		&product.Description,
-		&product.Category,
-		&product.StockQuantity,
-		&product.CreatedAt,
-		&product.UpdatedAt,
-	)
-	if newQuantity <= product.StockQuantity {
-		sql = `
+	// row := c.dbpool.QueryRow(ctx, sql, cartItem.ProductID)
+	// var product models.Product
+	// err = row.Scan(
+	// 	&product.ID,
+	// 	&product.Name,
+	// 	&product.Price,
+	// 	&product.Description,
+	// 	&product.Category,
+	// 	&product.StockQuantity,
+	// 	&product.CreatedAt,
+	// 	&product.UpdatedAt,
+	// )
+	// if newQuantity <= product.StockQuantity {
+	sql := `
 	UPDATE cart_items
 	SET quantity=$1
 	WHERE id=$2
 	`
-		_, err = c.dbpool.Exec(ctx, sql, newQuantity, itemID)
-		if err != nil {
-			return fmt.Errorf("Error updating item %s quantity: %w", itemID, err)
-		}
-		return nil
+	_, err := c.dbpool.Exec(ctx, sql, newQuantity, itemID)
+	if err != nil {
+		return fmt.Errorf("Error updating item %s quantity: %w", itemID, err)
 	}
-	return fmt.Errorf("Available stock for this product is %d, the requested quantity is %d", product.StockQuantity, newQuantity)
+	return nil
+	// }
+	// return fmt.Errorf("Available stock for this product is %d, the requested quantity is %d", product.StockQuantity, newQuantity)
 }
 
 func (c *CartsStore) DeleteCartItem(ctx context.Context, cartItemID string) error {

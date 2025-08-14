@@ -48,6 +48,11 @@ var (
 	ErrMissingName             = APIError{"Product name is required", "MISSING_NAME", http.StatusBadRequest}
 	ErrInvalidProductID        = APIError{"Invalid product ID format", "INVALID_PRODUCT_ID", http.StatusBadRequest}
 	ErrEmptyProductID          = APIError{"Product ID cannot be empty", "EMPTY_PRODUCT_ID", http.StatusBadRequest}
+	ErrPaymentNotFound         = APIError{"Payment not found", "ORDER_NOT_FOUND", http.StatusNotFound}
+	ErrPaymentCardDeclined     = APIError{"Card was declined", "CARD_DECLINED", http.StatusBadRequest}
+	ErrPaymentCardExpired      = APIError{"Card is expired", "CARD_EXPIRED", http.StatusBadRequest}
+	ErrPaymentIncorrectCVC     = APIError{"Incorrect card CVC", "INCORRECT_CVC", http.StatusBadRequest}
+	ErrPaymentProcessingFailed = APIError{"Payment processing failed", "PAYMENT_PROCESSING_FAILED", http.StatusInternalServerError}
 
 	// Generic validation
 	ErrInvalidInput = APIError{"Invalid input data", "INVALID_INPUT", http.StatusBadRequest}

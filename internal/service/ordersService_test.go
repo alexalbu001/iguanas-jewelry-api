@@ -130,3 +130,5 @@ func TestCancelOrder(t *testing.T) {
 	}
 
 }
+
+// Rest of order methods
