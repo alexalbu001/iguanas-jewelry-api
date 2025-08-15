@@ -6,15 +6,18 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type OrdersHandlers struct {
-	ordersService *service.OrdersService
+	ordersService  *service.OrdersService
+	paymentService *service.PaymentService
 }
 
-func NewOrdersHandlers(ordersService *service.OrdersService) *OrdersHandlers {
+func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *service.PaymentService) *OrdersHandlers {
 	return &OrdersHandlers{
-		ordersService: ordersService,
+		ordersService:  ordersService,
+		paymentService: paymentService,
 	}
 }
 
@@ -108,7 +111,18 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, orderSummary)
+	idempotencyKey := uuid.NewString()
+
+	clientSecret, err := oh.paymentService.CreatePaymentIntent(c.Request.Context(), orderSummary.ID, idempotencyKey)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"order":         orderSummary,
+		"client_secret": clientSecret,
+	})
 }
 
 func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {

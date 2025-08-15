@@ -7,7 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware) {
+func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware) {
 
 	// Auth routes (no /api/v1 prefix for OAuth)
 	auth := r.Group("/auth")
@@ -15,7 +15,7 @@ func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userH
 		auth.GET("/google", authHandlers.GoogleLogin)
 		auth.GET("/google/callback", authHandlers.GoogleCallback)
 	}
-
+	r.POST("/webhooks/stripe", paymentHandlers.HandleWebhook)
 	// API v1 routes
 	api := r.Group("/api/v1")
 
@@ -50,8 +50,13 @@ func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userH
 		{
 			orders.GET("", ordersHandlers.ViewOrderHistory)
 			orders.GET("/:id", ordersHandlers.GetOrderInfo)
-			orders.POST("", ordersHandlers.CreateOrder) //checkout
+			orders.POST("/checkout", ordersHandlers.CreateOrder) //checkout
 			orders.PUT("/:id/cancel", ordersHandlers.CancelOrder)
+		}
+
+		payment := protected.Group("/payment")
+		{
+			payment.POST("/intents/:order_id", paymentHandlers.CreatePaymentIntent)
 		}
 	}
 

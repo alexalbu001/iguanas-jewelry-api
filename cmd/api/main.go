@@ -58,7 +58,9 @@ func main() {
 
 	sessionsStore := auth.NewSessionStore(rdb)
 
-	ordersStore := store.NewOrdersStore(dbpool, cartsStore, productStore)
+	ordersStore := store.NewOrdersStore(dbpool)
+
+	paymentStore := store.NewPaymentStore(dbpool)
 
 	//create service layer
 	tx := transaction.NewTxManager(dbpool)
@@ -67,18 +69,20 @@ func main() {
 	userService := service.NewUserService(userStore)
 	cartsService := service.NewCartsService(cartsStore, productStore, userStore, tx)
 	ordersService := service.NewOrderService(ordersStore, productStore, cartsStore, tx)
+	paymentService := service.NewPaymentService(paymentStore, ordersStore)
 	//create handlers with store
 
 	productHandlers := handlers.NewProductHandlers(productsService)
 	userHandlers := handlers.NewUserHandler(userService)
 	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
-	ordersHandlers := handlers.NewOrdersHandlers(ordersService)
+	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService)
+	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 
-	routes.SetupRoutes(r, productHandlers, userHandlers, cartHandlers, ordersHandlers, authHandlers, authMiddleware, adminMiddleware)
+	routes.SetupRoutes(r, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

@@ -17,7 +17,7 @@ type OrdersStore struct {
 	// products *ProductsStore
 }
 
-func NewOrdersStore(connection *pgxpool.Pool, carts *CartsStore, products *ProductsStore) *OrdersStore {
+func NewOrdersStore(connection *pgxpool.Pool) *OrdersStore {
 	return &OrdersStore{
 		dbpool: connection,
 		// carts:    carts,

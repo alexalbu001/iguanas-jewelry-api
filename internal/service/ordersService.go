@@ -458,6 +458,9 @@ func (o *OrdersService) GetOrdersByStatus(ctx context.Context, status string) ([
 }
 
 func (o *OrdersService) UpdateOrderStatus(ctx context.Context, status, orderID string) error {
+	if orderID == "" {
+		return &customerrors.ErrOrderNotFound
+	}
 	order, err := o.orderStore.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return fmt.Errorf("Error fetching order: %w", err)
@@ -471,4 +474,30 @@ func (o *OrdersService) UpdateOrderStatus(ctx context.Context, status, orderID s
 
 	}
 	return nil
+}
+
+func (o *OrdersService) GetOrderByIDAdmin(ctx context.Context, orderID string) (OrderSummary, error) {
+
+	order, err := o.orderStore.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return OrderSummary{}, fmt.Errorf("Error fetching orders: %w", err)
+	}
+
+	orderItems, err := o.orderStore.GetOrderItems(ctx, order.ID)
+	if err != nil {
+		return OrderSummary{}, fmt.Errorf("Error fetching order items: %w", err)
+	}
+	productIDs, err := utils.ExtractProductIDsFromOrderItems(orderItems)
+	if err != nil {
+		return OrderSummary{}, fmt.Errorf("Error extracting product ids: %w", err)
+	}
+
+	productMap, err := o.productsStore.GetByIDBatch(ctx, productIDs)
+	if err != nil {
+		return OrderSummary{}, fmt.Errorf("Error mapping products to map: %w", err)
+	}
+
+	orderSummary, err := o.buildOrderSummary(order, orderItems, productMap)
+
+	return orderSummary, nil
 }

@@ -3,7 +3,6 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -46,9 +45,7 @@ func (d *CartsHandlers) GetUserCart(c *gin.Context) { //Get cart and items from 
 		return
 	}
 
-	var cartResponse responses.CartResponse
-	cartResponse.CartID = cartSummary.CartID
-	cartResponse.Total = cartSummary.Total
+	cartResponse := convertToCartResponse(cartSummary)
 
 	c.JSON(http.StatusOK, cartResponse)
 }

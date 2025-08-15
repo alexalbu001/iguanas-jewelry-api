@@ -71,6 +71,7 @@ func (c *CartsService) GetUserCart(ctx context.Context, userID string) (CartSumm
 	if err != nil {
 		return CartSummary{}, fmt.Errorf("Error retrieving or creating cart: %w", err)
 	}
+
 	if cart.ID == "" {
 		return CartSummary{}, &customerrors.ErrCartEmpty
 	}
@@ -126,6 +127,8 @@ func (c *CartsService) GetUserCart(ctx context.Context, userID string) (CartSumm
 		cartSummary.Total += v.Subtotal
 	}
 	cartSummary.Warning = warnings
+	cartSummary.CartID = cart.ID
+
 	return cartSummary, nil
 }
 

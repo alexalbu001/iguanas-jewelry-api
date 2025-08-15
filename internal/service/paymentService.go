@@ -42,19 +42,28 @@ func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idemp
 	var err error
 	maxRetries := 3
 
+	fmt.Printf("🔑 Creating PaymentIntent for order: %s\n", orderID)
+
 	// Get order details once, before the loop starts.
 	order, err := p.OrdersStore.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve order: %w", err)
 	}
+	fmt.Printf("💰 Order amount: %.2f\n", order.TotalAmount)
+
+	amountInPence := int64(order.TotalAmount * 100)
 
 	params := &stripe.PaymentIntentParams{
-		Amount:       stripe.Int64(int64(order.TotalAmount)),
+		Amount:       stripe.Int64(int64(amountInPence)),
 		Currency:     stripe.String(string(stripe.CurrencyGBP)),
 		ReceiptEmail: stripe.String(string(order.ShippingEmail)),
-		Customer:     stripe.String(string(order.UserID)),
+		// Customer:     stripe.String(string(order.UserID)),
+		Metadata: map[string]string{
+			"order_id": orderID,
+		},
 	}
 	params.SetIdempotencyKey(idempotencyKey)
+	fmt.Printf("🔄 Attempting PaymentIntent creation...\n")
 
 	// --- 2. THE RETRY LOOP ---
 	for attempt := 1; attempt <= maxRetries; attempt++ {
@@ -87,6 +96,7 @@ func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idemp
 	// After the loop, if we still have an error, it means all our retries failed.
 	// We translate this final error and return it.
 	if err != nil {
+		fmt.Printf("🚨 Stripe error: %v\n", err)
 		return "", p.translateStripeError(err)
 	}
 
@@ -110,4 +120,21 @@ func (p *PaymentService) translateStripeError(err error) error {
 	}
 	// For a generic non-Stripe error (e.g. net/http) after all retries.
 	return &customerrors.ErrPaymentProcessingFailed
+}
+
+func (p *PaymentService) CreatePayment(ctx context.Context, payment models.Payment) (models.Payment, error) {
+	createdPayment, err := p.PaymentStore.CreatePayment(ctx, payment)
+	if err != nil {
+		return models.Payment{}, fmt.Errorf("Failed to create payment: %w", err)
+	}
+	return createdPayment, nil
+}
+
+func (p *PaymentService) GetPaymentsByOrderID(ctx context.Context, orderID string) ([]models.Payment, error) {
+	fetchedPayments, err := p.PaymentStore.GetPaymentsByOrderID(ctx, orderID)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get payments: %w", err)
+	}
+
+	return fetchedPayments, nil
 }
