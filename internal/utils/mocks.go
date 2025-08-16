@@ -451,6 +451,17 @@ func (m *MockOrderStore) UpdateOrderStatus(ctx context.Context, status, orderID 
 	return &customerrors.ErrOrderNotFound
 }
 
+func (m *MockOrderStore) UpdateOrderStatusTx(ctx context.Context, status, orderID string, tx pgx.Tx) error {
+	for i := range m.OrderStore {
+		if orderID == m.OrderStore[i].ID {
+			m.OrderStore[i].Status = status
+			m.OrderStore[i].UpdatedAt = time.Now()
+			return nil
+		}
+	}
+	return &customerrors.ErrOrderNotFound
+}
+
 func (m *MockOrderStore) GetAllOrders(ctx context.Context) ([]models.Order, error) {
 	return m.OrderStore, nil
 }

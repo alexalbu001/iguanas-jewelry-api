@@ -35,41 +35,9 @@ func (p *PaymentHandler) RetryOrderPayment(c *gin.Context) {
 	}
 	orderID := c.Param("order_id")
 
-	orderSummary, err := p.ordersService.GetOrderByIDAdmin(c.Request.Context(), orderID)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	if userID != orderSummary.UserID {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-	}
-
-	if orderSummary.Status == "paid" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Order already paid"})
-		return
-	}
-	if orderSummary.Status == "cancelled" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Cannot retry cancelled order",
-		})
-		return
-	}
-
-	payments, err := p.paymentService.GetPaymentsByOrderID(c.Request.Context(), orderID)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-
-	if len(payments) > 3 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Too many unsuccessful payments occured. Contact customer support"})
-		return
-	}
-
 	idempotencyKey := uuid.NewString()
 
-	clientSecret, err := p.paymentService.CreatePaymentIntent(c.Request.Context(), orderID, idempotencyKey)
+	clientSecret, err := p.paymentService.RetryOrderPayment(c.Request.Context(), userID.(string), orderID, idempotencyKey)
 	if err != nil {
 		c.Error(err)
 		return

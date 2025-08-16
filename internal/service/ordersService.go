@@ -39,6 +39,7 @@ type OrdersStore interface {
 	GetAllOrders(ctx context.Context) ([]models.Order, error)
 	GetOrdersByStatus(ctx context.Context, status string) ([]models.Order, error)
 	UpdateOrderStatus(ctx context.Context, status, orderID string) error
+	UpdateOrderStatusTx(ctx context.Context, status, orderID string, tx pgx.Tx) error
 }
 
 type OrdersService struct {
@@ -184,6 +185,10 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 		}
 
 		if product.StockQuantity < item.Quantity { //check stock
+			err := o.cartsStore.DeleteCartItem(ctx, item.ID)
+			if err != nil {
+				return OrderSummary{}, fmt.Errorf("Failed to delete cart item: %w", err)
+			}
 			return OrderSummary{}, customerrors.NewErrInsufficientStock(item.ProductID, item.Quantity, product.StockQuantity, item.Quantity)
 		}
 		subtotal += float64(item.Quantity) * product.Price //subtotal
@@ -259,6 +264,13 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 		if err != nil {
 			return fmt.Errorf("Error inserting order items: %w", err)
 		}
+		for _, item := range orderItems {
+			err = o.productsStore.UpdateStockTx(ctx, item.ProductID, -item.Quantity, tx)
+			if err != nil {
+				return fmt.Errorf("Failed to update stock quantity: %w", err)
+			}
+		}
+
 		err = o.cartsStore.EmptyCartTx(ctx, userID, tx)
 		if err != nil {
 			return fmt.Errorf("Error clearing cart: %w", err)
@@ -335,7 +347,26 @@ func (o *OrdersService) CancelOrder(ctx context.Context, userID, orderID string)
 	}
 	if err := o.orderStore.UpdateOrderStatus(ctx, "cancelled", order.ID); err != nil {
 		return fmt.Errorf("Error updating order status: %w", err)
+	}
 
+	orderItems, err := o.orderStore.GetOrderItems(ctx, order.ID)
+	if err != nil {
+		return fmt.Errorf("Failed to fetch order items: %w", err)
+	}
+	err = o.TxManager.WithTransaction(ctx, func(tx pgx.Tx) error {
+		if err := o.orderStore.UpdateOrderStatusTx(ctx, "cancelled", order.ID, tx); err != nil {
+			return fmt.Errorf("Error updating order status: %w", err)
+		}
+		for _, item := range orderItems {
+			err = o.productsStore.UpdateStockTx(ctx, item.ProductID, item.Quantity, tx)
+			if err != nil {
+				return fmt.Errorf("Failed to update product stock: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Transaction failed :%w", err)
 	}
 	return nil
 }
@@ -469,10 +500,27 @@ func (o *OrdersService) UpdateOrderStatus(ctx context.Context, status, orderID s
 		return &customerrors.ErrCannotChangeStatus
 	}
 
-	if err := o.orderStore.UpdateOrderStatus(ctx, status, order.ID); err != nil {
-		return fmt.Errorf("Failed to cancel order: %w", err)
-
+	orderItems, err := o.orderStore.GetOrderItems(ctx, order.ID)
+	if err != nil {
+		return fmt.Errorf("Failed to fetch order items: %w", err)
 	}
+
+	err = o.TxManager.WithTransaction(ctx, func(tx pgx.Tx) error {
+		if err := o.orderStore.UpdateOrderStatusTx(ctx, status, order.ID, tx); err != nil {
+			return fmt.Errorf("Failed to cancel order: %w", err)
+		}
+		for _, item := range orderItems {
+			err = o.productsStore.UpdateStockTx(ctx, item.ProductID, item.Quantity, tx)
+			if err != nil {
+				return fmt.Errorf("Failed to update product stock: %w", err)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("Transaction failed :%w", err)
+	}
+
 	return nil
 }
 

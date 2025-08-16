@@ -56,7 +56,7 @@ func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userH
 
 		payment := protected.Group("/payment")
 		{
-			payment.POST("/intents/:order_id", paymentHandlers.CreatePaymentIntent)
+			payment.POST("/intents/:order_id", paymentHandlers.RetryOrderPayment)
 		}
 	}
 

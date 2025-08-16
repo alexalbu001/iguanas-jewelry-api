@@ -265,6 +265,23 @@ func (o *OrdersStore) UpdateOrderStatus(ctx context.Context, status, orderID str
 	return nil
 }
 
+func (o *OrdersStore) UpdateOrderStatusTx(ctx context.Context, status, orderID string, tx pgx.Tx) error {
+	sql := `
+	UPDATE orders
+	SET status=$1, updated_at=$2
+	WHERE id=$3
+	`
+
+	commandTag, err := tx.Exec(ctx, sql, status, time.Now(), orderID)
+	if err != nil {
+		return fmt.Errorf("Error updating order status: %w", err)
+	}
+	if commandTag.RowsAffected() == 0 {
+		return &customerrors.ErrOrderNotFound
+	}
+	return nil
+}
+
 // func (o *OrdersStore) UpdateShippingInfo(ctx context.Context, )
 
 func (o *OrdersStore) GetAllOrders(ctx context.Context) ([]models.Order, error) {

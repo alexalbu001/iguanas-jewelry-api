@@ -138,3 +138,38 @@ func (p *PaymentService) GetPaymentsByOrderID(ctx context.Context, orderID strin
 
 	return fetchedPayments, nil
 }
+
+func (p *PaymentService) RetryOrderPayment(ctx context.Context, userID, orderID, idempotencyKey string) (string, error) {
+	order, err := p.OrdersStore.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return "", fmt.Errorf("Error fetching order: %w", err)
+	}
+
+	if order.UserID != userID {
+		return "", &customerrors.ErrOrderNotOwned
+	}
+
+	if order.Status == "paid" {
+		return "", &customerrors.ErrOrderAlreadyPaid
+	}
+
+	if order.Status == "cancelled" {
+		return "", &customerrors.ErrOrderCancelled
+	}
+
+	payments, err := p.GetPaymentsByOrderID(ctx, orderID)
+	if err != nil {
+		return "", fmt.Errorf("Failed to fetch payments: %w", err)
+	}
+
+	if len(payments) > 3 {
+		return "", &customerrors.ErrPaymentsTooManyRetries
+	}
+
+	clientSecret, err := p.CreatePaymentIntent(ctx, orderID, idempotencyKey)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create payment intent: %w", err)
+	}
+
+	return clientSecret, nil
+}

@@ -41,6 +41,8 @@ var (
 	ErrUserNotFound            = APIError{"User not found", "USER_NOT_FOUND", http.StatusNotFound}
 	ErrProductNotFound         = APIError{"Product not found", "Product_NOT_FOUND", http.StatusNotFound}
 	ErrOrderNotOwned           = APIError{"Order does not belong to user", "ORDER_NOT_OWNED", http.StatusForbidden}
+	ErrOrderAlreadyPaid        = APIError{"Order already paid", "ORDER_ALREADY_PAID", http.StatusForbidden}
+	ErrOrderCancelled          = APIError{"Order is cancelled", "ORDER_CANCELLED", http.StatusForbidden}
 	ErrCannotCancel            = APIError{"Order cannot be cancelled", "CANNOT_CANCEL", http.StatusBadRequest}
 	ErrCannotChangeStatus      = APIError{"Order status cannot be changed", "CANNOT_CHANGE_STATUS", http.StatusBadRequest}
 	ErrInvalidPrice            = APIError{"Price must be greater than 0", "INVALID_PRICE", http.StatusBadRequest}
@@ -53,6 +55,7 @@ var (
 	ErrPaymentCardExpired      = APIError{"Card is expired", "CARD_EXPIRED", http.StatusBadRequest}
 	ErrPaymentIncorrectCVC     = APIError{"Incorrect card CVC", "INCORRECT_CVC", http.StatusBadRequest}
 	ErrPaymentProcessingFailed = APIError{"Payment processing failed", "PAYMENT_PROCESSING_FAILED", http.StatusInternalServerError}
+	ErrPaymentsTooManyRetries  = APIError{"Too many unsuccessful payments occured. Contact customer support", "PAYMENTS_TOO_MANY_RETRIES", http.StatusInternalServerError}
 
 	// Generic validation
 	ErrInvalidInput = APIError{"Invalid input data", "INVALID_INPUT", http.StatusBadRequest}
