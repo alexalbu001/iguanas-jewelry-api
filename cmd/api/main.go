@@ -14,6 +14,8 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/alexalbu001/iguanas-jewelry/internal/transaction"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -49,6 +51,15 @@ func main() {
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
 	log.Println("Stripe SDK configured.")
 
+	ctx := context.Background()
+	sdkConfig, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		log.Fatal("Couldn't load AWS configuration:", err)
+	}
+
+	// Create SQS client
+	sqsClient := sqs.NewFromConfig(sdkConfig)
+
 	//create repository layer
 	productStore := store.NewProductStore(dbpool)
 
@@ -76,7 +87,7 @@ func main() {
 	userHandlers := handlers.NewUserHandler(userService)
 	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
-	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService)
+	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient)
 	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)

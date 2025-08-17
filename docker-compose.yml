@@ -18,3 +18,11 @@ services:
       - "6379:6379"
     volumes:
     - ./redis-data:/data  # Persist Redis datad
+
+  aws:
+    image: localstack/localstack
+    restart: always
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock

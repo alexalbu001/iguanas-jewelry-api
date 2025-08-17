@@ -6,3 +6,6 @@ redis-data
 Makefile
 info.md
 TODO*
+template.yaml
+builds
+scripts

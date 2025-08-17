@@ -42,14 +42,13 @@ func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idemp
 	var err error
 	maxRetries := 3
 
-	fmt.Printf("🔑 Creating PaymentIntent for order: %s\n", orderID)
+	// fmt.Printf("Creating PaymentIntent for order: %s\n", orderID)
 
 	// Get order details once, before the loop starts.
 	order, err := p.OrdersStore.GetOrderByID(ctx, orderID)
 	if err != nil {
 		return "", fmt.Errorf("failed to retrieve order: %w", err)
 	}
-	fmt.Printf("💰 Order amount: %.2f\n", order.TotalAmount)
 
 	amountInPence := int64(order.TotalAmount * 100)
 
@@ -63,7 +62,7 @@ func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idemp
 		},
 	}
 	params.SetIdempotencyKey(idempotencyKey)
-	fmt.Printf("🔄 Attempting PaymentIntent creation...\n")
+	// fmt.Printf("🔄 Attempting PaymentIntent creation...\n")
 
 	// --- 2. THE RETRY LOOP ---
 	for attempt := 1; attempt <= maxRetries; attempt++ {

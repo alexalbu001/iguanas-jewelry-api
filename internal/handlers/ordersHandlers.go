@@ -1,10 +1,17 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"os"
+	"time"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
@@ -12,12 +19,19 @@ import (
 type OrdersHandlers struct {
 	ordersService  *service.OrdersService
 	paymentService *service.PaymentService
+	sqsClient      *sqs.Client
 }
 
-func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *service.PaymentService) *OrdersHandlers {
+type ExpirationMessage struct {
+	OrderID   string    `json:"order_id"`
+	CreatedAt time.Time `json:"created_at`
+}
+
+func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *service.PaymentService, sqsClient *sqs.Client) *OrdersHandlers {
 	return &OrdersHandlers{
 		ordersService:  ordersService,
 		paymentService: paymentService,
+		sqsClient:      sqsClient,
 	}
 }
 
@@ -119,10 +133,38 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 		return
 	}
 
+	input, err := oh.CreateSQSInputMessage(orderSummary.ID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	_, err = oh.sqsClient.SendMessage(c.Request.Context(), input)
+	if err != nil {
+		// Log but don't fail the order (best effort approach)
+		log.Printf("Failed to send expiration message for order %s: %v", orderSummary.ID, err)
+	}
+
 	c.JSON(http.StatusOK, gin.H{
 		"order":         orderSummary,
 		"client_secret": clientSecret,
 	})
+}
+
+func (oh *OrdersHandlers) CreateSQSInputMessage(orderID string) (*sqs.SendMessageInput, error) {
+	expirationMsg := ExpirationMessage{
+		OrderID:   orderID,
+		CreatedAt: time.Now(),
+	}
+
+	messageBody, err := json.Marshal(expirationMsg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal message: %w", err)
+	}
+	return &sqs.SendMessageInput{
+		QueueUrl:     aws.String(os.Getenv("QUEUE_URL")),
+		MessageBody:  aws.String(string(messageBody)),
+		DelaySeconds: 5, // 15 minutes
+	}, nil
 }
 
 func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {

@@ -48,6 +48,7 @@ func (p *PaymentHandler) RetryOrderPayment(c *gin.Context) {
 	})
 }
 
+// This will get called by STRIPE
 func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	payload, err := io.ReadAll(c.Request.Body)
