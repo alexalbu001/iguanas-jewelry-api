@@ -163,7 +163,7 @@ func (oh *OrdersHandlers) CreateSQSInputMessage(orderID string) (*sqs.SendMessag
 	return &sqs.SendMessageInput{
 		QueueUrl:     aws.String(os.Getenv("QUEUE_URL")),
 		MessageBody:  aws.String(string(messageBody)),
-		DelaySeconds: 5, // 15 minutes
+		DelaySeconds: 900, // 15 minutes
 	}, nil
 }
 

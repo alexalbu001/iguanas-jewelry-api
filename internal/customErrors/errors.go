@@ -55,7 +55,12 @@ var (
 	ErrPaymentCardExpired      = APIError{"Card is expired", "CARD_EXPIRED", http.StatusBadRequest}
 	ErrPaymentIncorrectCVC     = APIError{"Incorrect card CVC", "INCORRECT_CVC", http.StatusBadRequest}
 	ErrPaymentProcessingFailed = APIError{"Payment processing failed", "PAYMENT_PROCESSING_FAILED", http.StatusInternalServerError}
-	ErrPaymentsTooManyRetries  = APIError{"Too many unsuccessful payments occured. Contact customer support", "PAYMENTS_TOO_MANY_RETRIES", http.StatusInternalServerError}
+	ErrPaymentsTooManyRetries  = APIError{"Too many unsuccessful payments occured. Contact customer support", "PAYMENTS_TOO_MANY_RETRIES", http.StatusBadRequest}
+	ErrInvalidShippingAddress  = APIError{"Invalid shipping address line", "INVALID_SHIPPING_ADDRESS", http.StatusBadRequest}
+	ErrFieldsMissing           = APIError{"Required missing fields", "MISSING_FIELDS", http.StatusBadRequest}
+	ErrShippingNameTooLong     = APIError{"Name is too long", "NAME_TOO_LONG", http.StatusBadRequest}
+	ErrShippingAddressTooLong  = APIError{"Address is too long", "ADDRESS_TOO_LONG", http.StatusBadRequest}
+	ErrInvalidEmail            = APIError{"Invalid email", "INVALID_EMAIL", http.StatusBadRequest}
 
 	// Generic validation
 	ErrInvalidInput = APIError{"Invalid input data", "INVALID_INPUT", http.StatusBadRequest}

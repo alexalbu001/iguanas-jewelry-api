@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
@@ -151,7 +153,13 @@ func (o *OrdersService) buildOrderSummary(order models.Order, orderItems []model
 	}, nil
 }
 
-func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, shippingInfo ShippingInfo) (OrderSummary, error) {
+func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, rawInfo ShippingInfo) (OrderSummary, error) {
+
+	shippingInfo, err := o.ValidateShippingInfo(ctx, rawInfo)
+	if err != nil {
+		return OrderSummary{}, &customerrors.ErrInvalidInput
+	}
+
 	cart, err := o.cartsStore.GetOrCreateCartByUserID(ctx, userID) //Get cart
 	if err != nil {
 		return OrderSummary{}, fmt.Errorf("Error fetching cart from user %s: %w", userID, err)
@@ -548,4 +556,59 @@ func (o *OrdersService) GetOrderByIDAdmin(ctx context.Context, orderID string) (
 	orderSummary, err := o.buildOrderSummary(order, orderItems, productMap)
 
 	return orderSummary, nil
+}
+
+func (o *OrdersService) ValidateShippingInfo(ctx context.Context, shippinginfo ShippingInfo) (ShippingInfo, error) {
+
+	info := o.normalizeShippingInfo(shippinginfo)
+	if info.Name == "" || info.Email == "" || info.Phone == "" || info.AddressLine1 == "" {
+		return ShippingInfo{}, &customerrors.ErrFieldsMissing
+	}
+	if len(info.Name) > 255 {
+		return ShippingInfo{}, &customerrors.ErrShippingNameTooLong
+	}
+	if len(info.AddressLine1) > 255 {
+		return ShippingInfo{}, &customerrors.ErrShippingAddressTooLong
+	}
+	if !strings.Contains(info.Email, "@") || len(info.Email) < 3 {
+		return ShippingInfo{}, &customerrors.ErrInvalidEmail
+	}
+	return info, nil
+}
+
+func (o *OrdersService) normalizeShippingInfo(info ShippingInfo) ShippingInfo {
+	// 1. Trim whitespace from all fields
+	info.Name = strings.TrimSpace(info.Name)
+	info.Email = strings.TrimSpace(info.Email)
+	info.Phone = strings.TrimSpace(info.Phone)
+	info.AddressLine1 = strings.TrimSpace(info.AddressLine1)
+	info.AddressLine2 = strings.TrimSpace(info.AddressLine2)
+	info.City = strings.TrimSpace(info.City)
+	info.State = strings.TrimSpace(info.State)
+	info.PostalCode = strings.TrimSpace(info.PostalCode)
+	info.Country = strings.TrimSpace(info.Country)
+
+	// 2. Collapse multiple spaces into one
+	space := regexp.MustCompile(`\s+`)
+	info.AddressLine1 = space.ReplaceAllString(info.AddressLine1, " ")
+	info.AddressLine2 = space.ReplaceAllString(info.AddressLine2, " ")
+	info.City = space.ReplaceAllString(info.City, " ")
+
+	// 3. Standardize email
+	info.Email = strings.ToLower(info.Email)
+
+	// 4. Standardize country code
+	info.Country = strings.ToUpper(info.Country)
+
+	// 5. Clean phone (keep only digits)
+	re := regexp.MustCompile(`[^0-9+]`) // Keep + for country code
+	info.Phone = re.ReplaceAllString(info.Phone, "")
+
+	// 6. Standardize postal code by country
+	if info.Country == "GB" || info.Country == "UK" {
+		info.PostalCode = strings.ToUpper(info.PostalCode)
+		// Remove spaces from UK postcodes for consistent storage
+		info.PostalCode = strings.ReplaceAll(info.PostalCode, " ", "")
+	}
+	return info
 }

@@ -161,7 +161,13 @@ func (p *PaymentService) RetryOrderPayment(ctx context.Context, userID, orderID,
 		return "", fmt.Errorf("Failed to fetch payments: %w", err)
 	}
 
-	if len(payments) > 3 {
+	failedCount := 0
+	for _, payment := range payments {
+		if payment.Status == "failed" {
+			failedCount++
+		}
+	}
+	if failedCount > 3 {
 		return "", &customerrors.ErrPaymentsTooManyRetries
 	}
 
