@@ -50,6 +50,11 @@ func (p *PaymentHandler) RetryOrderPayment(c *gin.Context) {
 
 // This will get called by STRIPE
 func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
+	logger, err := GetComponentLogger(c, "payment")
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
 	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	payload, err := io.ReadAll(c.Request.Body)
 	if err != nil {
@@ -94,8 +99,10 @@ func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 			Status:          "succeeded",
 		}
 
+		logRequest(logger, "create payment", "order_id", orderID)
 		_, err = p.paymentService.CreatePayment(c.Request.Context(), payment)
 		if err != nil {
+			logError(logger, "failed to create payment", err, "order_id", orderSummary.ID)
 			c.Error(err)
 			return
 		}
@@ -141,8 +148,10 @@ func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 			FailureReason:   failureMessage,
 		}
 
+		logRequest(logger, "create failed payment", "order_id", orderID)
 		_, err = p.paymentService.CreatePayment(c.Request.Context(), payment)
 		if err != nil {
+			logError(logger, "create failed payment", err, "order_id", orderID)
 			c.Error(err)
 			return
 		}

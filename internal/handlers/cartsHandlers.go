@@ -33,24 +33,35 @@ func NewCartsHandler(cartsService *service.CartsService, productsService *servic
 }
 
 func (d *CartsHandlers) GetUserCart(c *gin.Context) { //Get cart and items from the cart
+	logger, err := GetComponentLogger(c, "carts")
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
+
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
 		return
 	}
-
+	logRequest(logger, "get user cart", "user_id", userID)
 	cartSummary, err := d.CartsService.GetUserCart(c.Request.Context(), userID.(string))
 	if err != nil {
+		logError(logger, "failed to get user cart", err, "user_id", userID)
 		c.Error(err)
 		return
 	}
-
 	cartResponse := convertToCartResponse(cartSummary)
 
 	c.JSON(http.StatusOK, cartResponse)
 }
 
 func (d *CartsHandlers) AddToCart(c *gin.Context) {
+	logger, err := GetComponentLogger(c, "carts")
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
@@ -63,8 +74,10 @@ func (d *CartsHandlers) AddToCart(c *gin.Context) {
 		return
 	}
 
+	logRequest(logger, "add to cart", "user_id", userID)
 	cartSummary, err := d.CartsService.AddToCart(c.Request.Context(), userID.(string), addToCartRequest.ProductID, addToCartRequest.Quantity)
 	if err != nil {
+		logError(logger, "failed to add to cart", err, "user_id", userID)
 		c.Error(err)
 		return
 	}

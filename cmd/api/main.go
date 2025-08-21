@@ -2,8 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
 
@@ -29,32 +28,37 @@ func init() {
 func main() {
 	r := gin.Default()
 
+	logger := setupLogger()
+
 	dbpool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
 	if err != nil {
-		log.Fatal("Unable to connect to db", err)
+		logger.Error("Unable to connect to db", "error", err)
+		os.Exit(1)
 	}
 	// Verify the connection
 	if err := dbpool.Ping(context.Background()); err != nil {
-		log.Fatal("Unable to ping database:", err)
+		logger.Error("Unable to ping database:", "error", err)
+		os.Exit(1)
 	}
 
-	fmt.Println("Connected to PostgreSQL database!")
-
+	logger.Info("Connected to PostgreSQL database!")
 	defer dbpool.Close()
 
 	opt, err := redis.ParseURL(os.Getenv("REDIS_URL"))
 	if err != nil {
-		log.Fatal("Unable to connect to redis", err)
+		logger.Error("Unable to connect to redis", "error", err)
+		os.Exit(1)
 	}
 	rdb := redis.NewClient(opt)
 
 	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
-	log.Println("Stripe SDK configured.")
+	logger.Info("Stripe SDK configured.")
 
 	ctx := context.Background()
 	sdkConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
-		log.Fatal("Couldn't load AWS configuration:", err)
+		logger.Error("Couldn't load AWS configuration:", "error", err)
+		os.Exit(1)
 	}
 
 	// Create SQS client
@@ -92,8 +96,9 @@ func main() {
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
+	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 
-	routes.SetupRoutes(r, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware)
+	routes.SetupRoutes(r, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -109,4 +114,35 @@ func main() {
 
 	r.Run(os.Getenv("PORT"))
 
+}
+
+func setupLogger() *slog.Logger {
+	level := slog.LevelInfo
+	switch os.Getenv("LOG_LEVEL") {
+	case "debug":
+		level = slog.LevelDebug
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	case "info":
+		level = slog.LevelInfo
+	}
+
+	opts := &slog.HandlerOptions{
+		Level: level,
+	}
+
+	var handler slog.Handler
+	if os.Getenv("LOG_FORMAT") == "json" {
+		handler = slog.NewJSONHandler(os.Stdout, opts)
+	} else {
+		handler = slog.NewTextHandler(os.Stdout, opts)
+	}
+	logger := slog.New(handler).With(
+		"service", "jewelry-api", // or from env var
+		"env", os.Getenv("ENV"),
+		"version", os.Getenv("VERSION"),
+	)
+	return logger
 }

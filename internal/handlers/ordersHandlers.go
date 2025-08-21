@@ -94,6 +94,11 @@ func buildOrderResponse(orderSummary service.OrderSummary) responses.OrderRespon
 }
 
 func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
+	logger, err := GetComponentLogger(c, "orders")
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		return
+	}
 	userID, exists := c.Get("userID")
 	if !exists {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
@@ -119,16 +124,20 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 		Country:      addShippingInfoToOrder.Country,
 	}
 
+	logRequest(logger, "create order", "user_id", userID)
 	orderSummary, err := oh.ordersService.CreateOrderFromCart(c.Request.Context(), userID.(string), shippingInfo)
 	if err != nil {
+		logError(logger, "failed to create order", err, "user_id", userID, "order_id", orderSummary.ID)
 		c.Error(err)
 		return
 	}
 
 	idempotencyKey := uuid.NewString()
 
+	logRequest(logger, "create payment intent", "user_id", userID)
 	clientSecret, err := oh.paymentService.CreatePaymentIntent(c.Request.Context(), orderSummary.ID, idempotencyKey)
 	if err != nil {
+		logError(logger, "failed to create payment intent", err, "user_id", userID, "order_id", orderSummary.ID)
 		c.Error(err)
 		return
 	}

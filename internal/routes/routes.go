@@ -7,8 +7,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware) {
-
+func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware) {
+	r.Use(loggingMiddleware.RequestLogging())
 	// Auth routes (no /api/v1 prefix for OAuth)
 	auth := r.Group("/auth")
 	{
