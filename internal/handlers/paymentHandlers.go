@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
@@ -16,14 +15,16 @@ import (
 )
 
 type PaymentHandler struct {
-	paymentService *service.PaymentService
-	ordersService  *service.OrdersService
+	paymentService      *service.PaymentService
+	ordersService       *service.OrdersService
+	stripeWebhookSecret string
 }
 
-func NewPaymentHandler(paymentService *service.PaymentService, ordersService *service.OrdersService) *PaymentHandler {
+func NewPaymentHandler(paymentService *service.PaymentService, ordersService *service.OrdersService, stripeWebhookSecret string) *PaymentHandler {
 	return &PaymentHandler{
-		paymentService: paymentService,
-		ordersService:  ordersService,
+		paymentService:      paymentService,
+		ordersService:       ordersService,
+		stripeWebhookSecret: stripeWebhookSecret,
 	}
 }
 
@@ -55,7 +56,7 @@ func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
 		return
 	}
-	webhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+	webhookSecret := p.stripeWebhookSecret
 	payload, err := io.ReadAll(c.Request.Body)
 	if err != nil {
 		c.Error(fmt.Errorf("error reading request body: %w", err))

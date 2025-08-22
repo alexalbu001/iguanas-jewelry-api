@@ -3,24 +3,35 @@ package auth
 import (
 	"encoding/json"
 	"net/http"
-	"os"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"golang.org/x/oauth2"
 )
 
 type AuthHandlers struct {
-	Store    *store.UsersStore
-	Sessions *SessionStore
+	Store      *store.UsersStore
+	Sessions   *SessionStore
+	Config     *oauth2.Config
+	AdminEmail string
+}
+
+func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore, config *oauth2.Config, adminEmail string) *AuthHandlers {
+	return &AuthHandlers{
+		Store:      store,
+		Sessions:   sessions,
+		Config:     config,
+		AdminEmail: adminEmail,
+	}
 }
 
 func (h *AuthHandlers) GoogleLogin(c *gin.Context) {
 	var state string
 	state = uuid.New().String()
 	c.SetCookie("state", state, 3600, "/", "localhost", false, true)
-	redirect := conf.AuthCodeURL(state)
+	redirect := h.Config.AuthCodeURL(state)
 	c.Redirect(302, redirect)
 }
 
@@ -42,13 +53,13 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	token, err := conf.Exchange(c.Request.Context(), code)
+	token, err := h.Config.Exchange(c.Request.Context(), code)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error:": "Could not exchange with google"})
 		return
 	}
 
-	client := conf.Client(c.Request.Context(), token)
+	client := h.Config.Client(c.Request.Context(), token)
 	resp, _ := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
 	c.SetCookie("state", "", -1, "/", "", false, false)
 	defer resp.Body.Close()
@@ -74,7 +85,7 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 			return
 		}
 	}
-	if user.Email == os.Getenv("ADMIN_EMAIL") && user.Role != "admin" {
+	if user.Email == h.AdminEmail && user.Role != "admin" {
 		// Update user role in database
 		err = h.Store.UpdateUserRole(c.Request.Context(), user.ID, "admin")
 		if err != nil {
@@ -93,11 +104,4 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 	c.SetCookie("session_id", sessionID, 86400, "/", "", false, true)
 
 	c.Redirect(http.StatusFound, "/")
-}
-
-func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore) *AuthHandlers {
-	return &AuthHandlers{
-		Store:    store,
-		Sessions: sessions,
-	}
 }

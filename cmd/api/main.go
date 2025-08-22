@@ -2,23 +2,27 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
+	"github.com/alexalbu001/iguanas-jewelry/internal/config"
 	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
 	"github.com/alexalbu001/iguanas-jewelry/internal/middleware"
 	"github.com/alexalbu001/iguanas-jewelry/internal/routes"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/alexalbu001/iguanas-jewelry/internal/transaction"
-	"github.com/aws/aws-sdk-go-v2/config"
+	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/stripe/stripe-go/v82"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 func init() {
@@ -27,10 +31,14 @@ func init() {
 
 func main() {
 	r := gin.Default()
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Errorf("Failed to load ENV vars")
+		os.Exit(1)
+	}
+	logger := setupLogger(cfg)
 
-	logger := setupLogger()
-
-	dbpool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	dbpool, err := pgxpool.New(context.Background(), cfg.Database.DatabaseURL)
 	if err != nil {
 		logger.Error("Unable to connect to db", "error", err)
 		os.Exit(1)
@@ -44,22 +52,36 @@ func main() {
 	logger.Info("Connected to PostgreSQL database!")
 	defer dbpool.Close()
 
-	opt, err := redis.ParseURL(os.Getenv("REDIS_URL"))
+	opt, err := redis.ParseURL(cfg.Redis.RedisURL)
 	if err != nil {
 		logger.Error("Unable to connect to redis", "error", err)
 		os.Exit(1)
 	}
 	rdb := redis.NewClient(opt)
 
-	stripe.Key = os.Getenv("STRIPE_SECRET_KEY")
+	stripe.Key = cfg.Stripe.StripeSK
 	logger.Info("Stripe SDK configured.")
 
 	ctx := context.Background()
-	sdkConfig, err := config.LoadDefaultConfig(ctx)
+	sdkConfig, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		logger.Error("Couldn't load AWS configuration:", "error", err)
 		os.Exit(1)
 	}
+
+	var conf = &oauth2.Config{
+		ClientID:     cfg.Google.ClientID,
+		ClientSecret: cfg.Google.ClientSecret,
+		RedirectURL:  cfg.Google.RedirectURL,
+		Scopes: []string{
+			"https://www.googleapis.com/auth/userinfo.email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+	adminEmail := cfg.AdminEmail
+	queueURL := cfg.SQS.QueueURL
+	stripeWebhookSecret := cfg.Stripe.StripeWebhookSecret
 
 	// Create SQS client
 	sqsClient := sqs.NewFromConfig(sdkConfig)
@@ -89,10 +111,10 @@ func main() {
 
 	productHandlers := handlers.NewProductHandlers(productsService)
 	userHandlers := handlers.NewUserHandler(userService)
-	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore)
+	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore, conf, adminEmail)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
-	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient)
-	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService)
+	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient, queueURL)
+	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService, stripeWebhookSecret)
 
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
@@ -112,13 +134,13 @@ func main() {
 		})
 	})
 
-	r.Run(os.Getenv("PORT"))
+	r.Run(cfg.AppPort)
 
 }
 
-func setupLogger() *slog.Logger {
+func setupLogger(cfg *config.Config) *slog.Logger {
 	level := slog.LevelInfo
-	switch os.Getenv("LOG_LEVEL") {
+	switch cfg.Logging.LogLevel {
 	case "debug":
 		level = slog.LevelDebug
 	case "warn":
@@ -134,15 +156,15 @@ func setupLogger() *slog.Logger {
 	}
 
 	var handler slog.Handler
-	if os.Getenv("LOG_FORMAT") == "json" {
+	if cfg.Logging.LogFormat == "json" {
 		handler = slog.NewJSONHandler(os.Stdout, opts)
 	} else {
 		handler = slog.NewTextHandler(os.Stdout, opts)
 	}
 	logger := slog.New(handler).With(
 		"service", "jewelry-api", // or from env var
-		"env", os.Getenv("ENV"),
-		"version", os.Getenv("VERSION"),
+		"env", cfg.Env,
+		"version", cfg.Version,
 	)
 	return logger
 }

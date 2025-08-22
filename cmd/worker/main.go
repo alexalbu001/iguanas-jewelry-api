@@ -3,10 +3,12 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"os"
 	"time"
 
+	"github.com/alexalbu001/iguanas-jewelry/internal/config"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
 	"github.com/alexalbu001/iguanas-jewelry/internal/transaction"
@@ -23,7 +25,12 @@ type ExpirationMessage struct {
 var ordersService *service.OrdersService
 
 func main() {
-	dbpool, err := pgxpool.New(context.Background(), os.Getenv("DATABASE_URL"))
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Errorf("Failed to load ENV vars")
+		os.Exit(1)
+	}
+	dbpool, err := pgxpool.New(context.Background(), cfg.Database.DatabaseURL)
 	if err != nil {
 		log.Fatal("Unable to connect to db", err)
 	}

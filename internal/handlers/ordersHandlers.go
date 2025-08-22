@@ -3,9 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
@@ -20,6 +18,7 @@ type OrdersHandlers struct {
 	ordersService  *service.OrdersService
 	paymentService *service.PaymentService
 	sqsClient      *sqs.Client
+	queueURL       string
 }
 
 type ExpirationMessage struct {
@@ -27,11 +26,12 @@ type ExpirationMessage struct {
 	CreatedAt time.Time `json:"created_at`
 }
 
-func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *service.PaymentService, sqsClient *sqs.Client) *OrdersHandlers {
+func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *service.PaymentService, sqsClient *sqs.Client, queueURL string) *OrdersHandlers {
 	return &OrdersHandlers{
 		ordersService:  ordersService,
 		paymentService: paymentService,
 		sqsClient:      sqsClient,
+		queueURL:       queueURL,
 	}
 }
 
@@ -150,7 +150,7 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 	_, err = oh.sqsClient.SendMessage(c.Request.Context(), input)
 	if err != nil {
 		// Log but don't fail the order (best effort approach)
-		log.Printf("Failed to send expiration message for order %s: %v", orderSummary.ID, err)
+		logError(logger, "failed to send message to sqs", err, "order_id", orderSummary.ID)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -170,7 +170,7 @@ func (oh *OrdersHandlers) CreateSQSInputMessage(orderID string) (*sqs.SendMessag
 		return nil, fmt.Errorf("failed to marshal message: %w", err)
 	}
 	return &sqs.SendMessageInput{
-		QueueUrl:     aws.String(os.Getenv("QUEUE_URL")),
+		QueueUrl:     aws.String(oh.queueURL),
 		MessageBody:  aws.String(string(messageBody)),
 		DelaySeconds: 900, // 15 minutes
 	}, nil
