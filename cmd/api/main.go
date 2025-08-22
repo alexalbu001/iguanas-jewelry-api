@@ -120,7 +120,7 @@ func main() {
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 
-	routes.SetupRoutes(r, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware)
+	routes.SetupRoutes(r, cfg, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -128,13 +128,20 @@ func main() {
 		})
 	})
 
+	r.GET("/health", healthCheck(dbpool, rdb))
+
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"message": "Hello World",
 		})
 	})
 
-	r.Run(cfg.AppPort)
+	if cfg.Env == "production" {
+		r.Run(fmt.Sprintf(":%d", cfg.AppPort))
+	} else {
+		// HTTPS in development
+		r.RunTLS(fmt.Sprintf(":%d", cfg.AppPort), "localhost+2.pem", "localhost+2-key.pem")
+	}
 
 }
 
@@ -167,4 +174,18 @@ func setupLogger(cfg *config.Config) *slog.Logger {
 		"version", cfg.Version,
 	)
 	return logger
+}
+
+func healthCheck(dbpool *pgxpool.Pool, redis *redis.Client) gin.HandlerFunc { // returns gin.HandlerFun because of factory pattern has access to db dependencies
+	return func(c *gin.Context) {
+		if err := dbpool.Ping(context.Background()); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status": "unhealthy",
+				"error":  "database"})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"status": "healthy",
+		})
+	}
 }

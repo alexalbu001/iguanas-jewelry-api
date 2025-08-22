@@ -2,13 +2,39 @@ package routes
 
 import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
+	"github.com/alexalbu001/iguanas-jewelry/internal/config"
 	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
 	"github.com/alexalbu001/iguanas-jewelry/internal/middleware"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/secure"
 	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(r *gin.Engine, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware) {
-	r.Use(loggingMiddleware.RequestLogging())
+func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware) {
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     cfg.CORS.AllowOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowCredentials: true, //Cookies
+	}))
+	if cfg.Env == "production" {
+		r.Use(secure.New(secure.Config{
+			STSSeconds:            31536000,
+			STSIncludeSubdomains:  true,
+			FrameDeny:             true,
+			ContentTypeNosniff:    true,
+			ReferrerPolicy:        "strict-origin-when-cross-origin",
+			ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none';",
+		}))
+	} else {
+		r.Use(secure.New(secure.Config{
+			FrameDeny:             true,
+			ContentTypeNosniff:    true,
+			ReferrerPolicy:        "strict-origin-when-cross-origin",
+			ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none';",
+		}))
+	}
+	r.Use(loggingMiddleware.RequestLogging()) //Use middleware abroad whole gin engine
 	// Auth routes (no /api/v1 prefix for OAuth)
 	auth := r.Group("/auth")
 	{

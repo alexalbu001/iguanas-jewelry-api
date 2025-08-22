@@ -13,7 +13,8 @@ type Config struct {
 	Google     GoogleConfig
 	SQS        SQSConfig
 	Logging    LoggingConfig
-	AppPort    string `envconfig:"PORT" default:":8080"`
+	CORS       CORSConfig
+	AppPort    int    `envconfig:"PORT" default:"8080"`
 	AdminEmail string `envconfig:"ADMIN_EMAIL" default:"alexalbu001@gmail.com"`
 	Env        string `envconfig:"ENV" default:"dev"`
 	Version    string `envconfig:"VERSION" default:"test-123"`
@@ -46,6 +47,10 @@ type SQSConfig struct {
 type LoggingConfig struct {
 	LogLevel  string `envconfig:"LOG_LEVEL" default:"info"`
 	LogFormat string `envconfig:"LOG_FORMAT"`
+}
+
+type CORSConfig struct {
+	AllowOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"https://localhost:3000"`
 }
 
 func Load() (*Config, error) {

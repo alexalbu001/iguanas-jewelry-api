@@ -9,3 +9,5 @@ TODO*
 template.yaml
 builds
 scripts
+localhost+2.pem
+localhost+2-key.pem
