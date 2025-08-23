@@ -36,9 +36,9 @@ func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *ser
 }
 
 type AddShippingInfoToOrder struct {
-	Name         string `json:"name" binding:"required"`
+	Name         string `json:"name" binding:"required, max=100"`
 	Email        string `json:"email" binding:"required,email"`
-	Phone        string `json:"phone" binding:"required"`
+	Phone        string `json:"phone" binding:"required, e164"`
 	AddressLine1 string `json:"address_line1" binding:"required"`
 	AddressLine2 string `json:"address_line2"` // Optional
 	City         string `json:"city" binding:"required"`

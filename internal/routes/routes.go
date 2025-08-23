@@ -11,13 +11,14 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware) {
-	r.Use(cors.New(cors.Config{
+	r.Use(cors.New(cors.Config{ // CORS
 		AllowOrigins:     cfg.CORS.AllowOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"Content-Type", "Authorization"},
 		AllowCredentials: true, //Cookies
 	}))
-	if cfg.Env == "production" {
+	r.Use(middleware.LimitRequestSize(1 << 20)) // 1MB requests size
+	if cfg.Env == "production" {                // SECURITY HEADERS
 		r.Use(secure.New(secure.Config{
 			STSSeconds:            31536000,
 			STSIncludeSubdomains:  true,
@@ -35,6 +36,7 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 		}))
 	}
 	r.Use(loggingMiddleware.RequestLogging()) //Use middleware abroad whole gin engine
+
 	// Auth routes (no /api/v1 prefix for OAuth)
 	auth := r.Group("/auth")
 	{

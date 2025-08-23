@@ -6,6 +6,7 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type ProductHandlers struct {
@@ -56,6 +57,10 @@ func (h *ProductHandlers) PostProducts(c *gin.Context) {
 
 func (h *ProductHandlers) GetProductByID(c *gin.Context) {
 	id := c.Param("id")
+	if err := uuid.Validate(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID format"})
+		return
+	}
 
 	foundProduct, err := h.ProductHandler.GetProductByID(c.Request.Context(), id)
 	if err != nil {
@@ -79,6 +84,10 @@ func (h *ProductHandlers) GetProductByID(c *gin.Context) {
 
 func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 	id := c.Param("id")
+	if err := uuid.Validate(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID format"})
+		return
+	}
 	var newProduct models.Product
 	if err := c.ShouldBindJSON(&newProduct); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
@@ -104,6 +113,10 @@ func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 
 func (h *ProductHandlers) DeleteProductByID(c *gin.Context) {
 	id := c.Param("id")
+	if err := uuid.Validate(id); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid product ID format"})
+		return
+	}
 	err := h.ProductHandler.DeleteProductByID(c.Request.Context(), id)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"Error": err.Error()})
