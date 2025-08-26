@@ -14,9 +14,11 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/routes"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/alexalbu001/iguanas-jewelry/internal/store"
+	"github.com/alexalbu001/iguanas-jewelry/internal/telemetry"
 	"github.com/alexalbu001/iguanas-jewelry/internal/transaction"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/exaring/otelpgx"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
@@ -30,6 +32,7 @@ func init() {
 }
 
 func main() {
+	ctx := context.Background()
 	r := gin.Default()
 	cfg, err := config.Load()
 	if err != nil {
@@ -38,13 +41,28 @@ func main() {
 	}
 	logger := setupLogger(cfg)
 
-	dbpool, err := pgxpool.New(context.Background(), cfg.Database.DatabaseURL)
+	telemtry, err := telemetry.InitTelemetry(ctx, "iguanas-jewelry", cfg.Version, cfg.Env)
+	if err != nil {
+		logger.Error("Failed to init telemetry:", "error", err)
+		os.Exit(1)
+	}
+	defer telemtry.Shutdown(ctx)
+
+	pgxConfig, err := pgxpool.ParseConfig(cfg.Database.DatabaseURL)
+	if err != nil {
+		logger.Error("Unable to parse database URL", "error", err)
+		os.Exit(1)
+	}
+
+	pgxConfig.ConnConfig.Tracer = otelpgx.NewTracer()
+
+	dbpool, err := pgxpool.NewWithConfig(context.Background(), pgxConfig)
 	if err != nil {
 		logger.Error("Unable to connect to db", "error", err)
 		os.Exit(1)
 	}
-	// Verify the connection
-	if err := dbpool.Ping(context.Background()); err != nil {
+
+	if err := dbpool.Ping(ctx); err != nil {
 		logger.Error("Unable to ping database:", "error", err)
 		os.Exit(1)
 	}
@@ -62,7 +80,6 @@ func main() {
 	stripe.Key = cfg.Stripe.StripeSK
 	logger.Info("Stripe SDK configured.")
 
-	ctx := context.Background()
 	sdkConfig, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
 		logger.Error("Couldn't load AWS configuration:", "error", err)

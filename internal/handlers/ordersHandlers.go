@@ -36,9 +36,9 @@ func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *ser
 }
 
 type AddShippingInfoToOrder struct {
-	Name         string `json:"name" binding:"required, max=100"`
+	Name         string `json:"name" binding:"required,max=200"`
 	Email        string `json:"email" binding:"required,email"`
-	Phone        string `json:"phone" binding:"required, e164"`
+	Phone        string `json:"phone" binding:"required,e164"`
 	AddressLine1 string `json:"address_line1" binding:"required"`
 	AddressLine2 string `json:"address_line2"` // Optional
 	City         string `json:"city" binding:"required"`
@@ -94,6 +94,7 @@ func buildOrderResponse(orderSummary service.OrderSummary) responses.OrderRespon
 }
 
 func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
+	test := c.GetHeader("test")
 	logger, err := GetComponentLogger(c, "orders")
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})

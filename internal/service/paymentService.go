@@ -11,6 +11,8 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/paymentintent"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type PaymentStore interface {
@@ -36,8 +38,11 @@ func NewPaymentService(paymentStore PaymentStore, ordersStore OrdersStore) *Paym
 }
 
 func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idempotencyKey string) (string, error) {
-	// --- 1. SETUP ---
-	// We declare the variables we'll need here.
+
+	tracer := otel.Tracer("iguanas-jewelry/payments")
+	ctx, span := tracer.Start(ctx, "stripe.CreatePaymentIntent")
+	defer span.End()
+
 	var pi *stripe.PaymentIntent
 	var err error
 	maxRetries := 3
@@ -62,12 +67,14 @@ func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idemp
 		},
 	}
 	params.SetIdempotencyKey(idempotencyKey)
-	// fmt.Printf("🔄 Attempting PaymentIntent creation...\n")
 
 	// --- 2. THE RETRY LOOP ---
 	for attempt := 1; attempt <= maxRetries; attempt++ {
 		pi, err = paymentintent.New(params)
-
+		span.SetAttributes(
+			attribute.String("stripe.payment_intent.id", pi.ID),
+			attribute.Float64("payment.amount", float64(pi.Amount)),
+		)
 		// If there's no error, we succeeded! Exit the loop.
 		if err == nil {
 			break
@@ -95,7 +102,6 @@ func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idemp
 	// After the loop, if we still have an error, it means all our retries failed.
 	// We translate this final error and return it.
 	if err != nil {
-		fmt.Printf("🚨 Stripe error: %v\n", err)
 		return "", p.translateStripeError(err)
 	}
 

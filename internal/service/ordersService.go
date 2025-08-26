@@ -305,11 +305,11 @@ func (o *OrdersService) GetOrdersHistory(ctx context.Context, userID string) ([]
 	var orderSummaries []OrderSummary
 	orderIDs, err := utils.ExtractOrderIDs(orders)
 	if err != nil {
-		return nil, fmt.Errorf("Error extracting order ids: %W", err)
+		return nil, fmt.Errorf("Error extracting order ids: %w", err)
 	}
 	ordersItemsMap, err := o.orderStore.GetOrderItemsBatch(ctx, orderIDs)
 	if err != nil {
-		return nil, fmt.Errorf("Error mapping orders: %W", err)
+		return nil, fmt.Errorf("Error mapping orders: %w", err)
 	}
 	var allProductIDs []string
 	for _, orderItems := range ordersItemsMap {

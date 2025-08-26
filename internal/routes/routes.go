@@ -8,6 +8,8 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/secure"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
 func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware) {
@@ -36,6 +38,9 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 		}))
 	}
 	r.Use(loggingMiddleware.RequestLogging()) //Use middleware abroad whole gin engine
+	r.Use(otelgin.Middleware("iguanas-jewelry"))
+
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Auth routes (no /api/v1 prefix for OAuth)
 	auth := r.Group("/auth")

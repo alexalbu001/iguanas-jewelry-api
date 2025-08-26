@@ -36,7 +36,7 @@ type StripeConfig struct {
 type GoogleConfig struct {
 	ClientID     string `envconfig:"GOOGLE_CLIENT_ID"`
 	ClientSecret string `envconfig:"GOOGLE_CLIENT_SECRET"`
-	RedirectURL  string `envconfig:"REDIRECT_URL" default:"http://localhost:8080/auth/google/callback"`
+	RedirectURL  string `envconfig:"REDIRECT_URL" default:"https://localhost:8080/auth/google/callback"`
 }
 
 type SQSConfig struct {

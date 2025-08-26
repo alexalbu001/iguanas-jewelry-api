@@ -182,7 +182,8 @@ func (o *OrdersStore) GetOrderItemsBatch(ctx context.Context, orderID []string) 
 
 	defer rows.Close()
 
-	var ordersItemsMap map[string][]models.OrderItem // each orderID will have multiple orderItems
+	// var ordersItemsMap map[string][]models.OrderItem // each orderID will have multiple orderItems
+	ordersItemsMap := make(map[string][]models.OrderItem) // The map should be initialised as empty, not nil
 
 	for rows.Next() {
 		var orderItem models.OrderItem
