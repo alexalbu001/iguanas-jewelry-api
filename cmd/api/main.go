@@ -119,7 +119,10 @@ func main() {
 	//create service layer
 	tx := transaction.NewTxManager(dbpool)
 
-	productsService := service.NewProductsService(productStore)
+	// Cached
+	cachedProductsStore := store.NewCachedProductsStore(productStore, rdb)
+
+	productsService := service.NewProductsService(cachedProductsStore)
 	userService := service.NewUserService(userStore)
 	cartsService := service.NewCartsService(cartsStore, productStore, userStore, tx)
 	ordersService := service.NewOrderService(ordersStore, productStore, cartsStore, tx)

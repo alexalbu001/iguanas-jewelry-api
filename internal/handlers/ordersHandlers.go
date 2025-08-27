@@ -94,7 +94,6 @@ func buildOrderResponse(orderSummary service.OrderSummary) responses.OrderRespon
 }
 
 func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
-	test := c.GetHeader("test")
 	logger, err := GetComponentLogger(c, "orders")
 	if err != nil {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
