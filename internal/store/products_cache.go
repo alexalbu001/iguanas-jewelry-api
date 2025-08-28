@@ -21,6 +21,7 @@ func NewCachedProductsStore(store service.ProductsStore, redisClient *redis.Clie
 	return &CachedProductsStore{
 		store:       store,
 		redisClient: redisClient,
+		ttl:         60 * time.Minute,
 	}
 }
 
@@ -44,8 +45,9 @@ func (c *CachedProductsStore) GetAll(ctx context.Context) ([]models.Product, err
 	}
 
 	go func() {
+		ctx2 := context.Background() // dont reuse context in a routine that outlives the request
 		if data, err := json.Marshal(products); err == nil {
-			c.redisClient.Set(ctx, cacheKey, data, c.ttl).Err()
+			c.redisClient.Set(ctx2, cacheKey, data, c.ttl).Err()
 		}
 	}()
 	return products, nil
@@ -77,8 +79,10 @@ func (c *CachedProductsStore) Update(ctx context.Context, id string, product mod
 	).Err()
 
 	go func() {
+		ctx2 := context.Background() // dont reuse context in a routine that outlives the request
+
 		if data, err := json.Marshal(result); err == nil {
-			c.redisClient.Set(ctx, "product:"+id, data, c.ttl)
+			c.redisClient.Set(ctx2, "product:"+id, data, c.ttl)
 		}
 	}()
 	return result, nil
@@ -98,8 +102,10 @@ func (c *CachedProductsStore) GetByID(ctx context.Context, id string) (models.Pr
 		return models.Product{}, err
 	}
 	go func() {
+		ctx2 := context.Background() // dont reuse context in a routine that outlives the request
+
 		if data, err := json.Marshal(product); err == nil {
-			c.redisClient.Set(ctx, "product:"+id, data, c.ttl)
+			c.redisClient.Set(ctx2, "product:"+id, data, c.ttl)
 		}
 	}()
 	return product, nil
@@ -133,8 +139,9 @@ func (c *CachedProductsStore) GetByIDBatch(ctx context.Context, productIDs []str
 			productsMap[id] = product
 
 			go func(product models.Product) {
+				ctx2 := context.Background() // dont reuse context in a routine that outlives the request
 				if data, err := json.Marshal(product); err == nil {
-					c.redisClient.Set(ctx, "product:"+id, data, c.ttl).Err() // cache only the missing ones
+					c.redisClient.Set(ctx2, "product:"+id, data, c.ttl).Err() // cache only the missing ones
 				}
 			}(product)
 		}

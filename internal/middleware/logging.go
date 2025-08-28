@@ -20,9 +20,11 @@ func NewLoggingMiddleware(logger *slog.Logger) *LoggingMiddleware {
 func (l *LoggingMiddleware) RequestLogging() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		requestID := uuid.New().String()
+		correlationID, _ := c.Get("correlation_id")
 
 		requestLogger := l.Logger.WithGroup("Info").With(
 			"request_id", requestID,
+			"correlation_id", correlationID,
 			"method", c.Request.Method,
 			"path", c.Request.URL.Path,
 		)

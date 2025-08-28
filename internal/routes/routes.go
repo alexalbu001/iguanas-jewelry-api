@@ -12,7 +12,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
-func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware) {
+func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware, rateLimitMiddleware gin.HandlerFunc) {
 	r.Use(cors.New(cors.Config{ // CORS
 		AllowOrigins:     cfg.CORS.AllowOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
@@ -37,6 +37,7 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 			ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none';",
 		}))
 	}
+	r.Use(middleware.CorrelationID())
 	r.Use(loggingMiddleware.RequestLogging()) //Use middleware abroad whole gin engine
 	r.Use(otelgin.Middleware("iguanas-jewelry"))
 
@@ -44,6 +45,7 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 
 	// Auth routes (no /api/v1 prefix for OAuth)
 	auth := r.Group("/auth")
+	auth.Use(rateLimitMiddleware)
 	{
 		auth.GET("/google", authHandlers.GoogleLogin)
 		auth.GET("/google/callback", authHandlers.GoogleCallback)
@@ -80,6 +82,7 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 		}
 
 		orders := protected.Group("/orders")
+		orders.Use(rateLimitMiddleware)
 		{
 			orders.GET("", ordersHandlers.ViewOrderHistory)
 			orders.GET("/:id", ordersHandlers.GetOrderInfo)

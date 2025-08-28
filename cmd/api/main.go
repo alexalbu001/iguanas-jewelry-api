@@ -6,6 +6,9 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
 	"github.com/alexalbu001/iguanas-jewelry/internal/config"
@@ -39,7 +42,13 @@ func main() {
 		fmt.Errorf("Failed to load ENV vars")
 		os.Exit(1)
 	}
+
 	logger := setupLogger(cfg)
+
+	if err := cfg.Validate(); err != nil {
+		logger.Error("Configuration validation failed", "error", err)
+		os.Exit(1)
+	}
 
 	telemtry, err := telemetry.InitTelemetry(ctx, "iguanas-jewelry", cfg.Version, cfg.Env)
 	if err != nil {
@@ -139,8 +148,9 @@ func main() {
 	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
+	rateLimitMiddleware := middleware.NewRateLimiter(rdb, "")
 
-	routes.SetupRoutes(r, cfg, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware)
+	routes.SetupRoutes(r, cfg, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware, rateLimitMiddleware)
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -156,12 +166,46 @@ func main() {
 		})
 	})
 
-	if cfg.Env == "production" {
-		r.Run(fmt.Sprintf(":%d", cfg.AppPort))
-	} else {
-		// HTTPS in development
-		r.RunTLS(fmt.Sprintf(":%d", cfg.AppPort), "localhost+2.pem", "localhost+2-key.pem")
+	srv := &http.Server{
+		Addr:         fmt.Sprintf(":%d", cfg.AppPort),
+		Handler:      r,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
+
+	// Channel to listen for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		if cfg.Env == "production" {
+			if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				logger.Error("Server failed to start", "error", err)
+				os.Exit(1)
+			}
+		} else {
+			if err := srv.ListenAndServeTLS("localhost+2.pem", "localhost+2-key.pem"); err != nil && err != http.ErrServerClosed {
+				logger.Error("Server failed to start", "error", err)
+				os.Exit(1)
+			}
+		}
+	}()
+
+	logger.Info("Server started", "port", cfg.AppPort, "env", cfg.Env)
+
+	<-quit
+	logger.Info("Shutting down server...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		logger.Error("Server forced to shutdown", "error", err)
+		os.Exit(1)
+	}
+
+	logger.Info("Server exited")
 
 }
 

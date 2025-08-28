@@ -1,4 +1,6 @@
 services:
+  main-app:
+    image: iguanas-jewelry:0.1
   postgres:
     image: postgres:latest
     restart: always

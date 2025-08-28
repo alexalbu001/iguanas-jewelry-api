@@ -2,13 +2,13 @@ package middleware
 
 import (
 	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
-	"github.com/alexalbu001/iguanas-jewelry/internal/store"
+	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
 type AdminMiddleware struct {
 	Sessions *auth.SessionStore
-	User     *store.UsersStore
+	User     service.UsersStore
 }
 
 func (a *AdminMiddleware) RequireAdmin() gin.HandlerFunc {
@@ -36,7 +36,7 @@ func (a *AdminMiddleware) RequireAdmin() gin.HandlerFunc {
 	}
 }
 
-func NewAdminMiddleware(session *auth.SessionStore, userStore *store.UsersStore) *AdminMiddleware {
+func NewAdminMiddleware(session *auth.SessionStore, userStore service.UsersStore) *AdminMiddleware {
 	return &AdminMiddleware{
 		Sessions: session,
 		User:     userStore,

@@ -58,5 +58,23 @@ func Load() (*Config, error) {
 	if err := envconfig.Process("", &cfg); err != nil {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
+
+	// Set environment-specific defaults
+	if cfg.Env == "production" && cfg.AppPort == 8080 {
+		cfg.AppPort = 443
+	}
+
 	return &cfg, nil
+}
+
+func (c *Config) Validate() error {
+	if c.Env == "production" {
+		if c.Stripe.StripeSK == "" {
+			return fmt.Errorf("STRIPE_SECRET_KEY is required in production")
+		}
+		if c.Google.ClientID == "" {
+			return fmt.Errorf("GOOGLE_CLIENT_ID is required in production")
+		}
+	}
+	return nil
 }
