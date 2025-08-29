@@ -61,6 +61,8 @@ var (
 	ErrShippingNameTooLong     = APIError{"Name is too long", "NAME_TOO_LONG", http.StatusBadRequest}
 	ErrShippingAddressTooLong  = APIError{"Address is too long", "ADDRESS_TOO_LONG", http.StatusBadRequest}
 	ErrInvalidEmail            = APIError{"Invalid email", "INVALID_EMAIL", http.StatusBadRequest}
+	ErrInvalidUUID             = APIError{"Invalid UUID format", "INVALID_UUID", http.StatusBadRequest}
+	ErrInvalidJSON             = APIError{"Invalid JSON payload", "INVALID_JSON", http.StatusBadRequest}
 
 	// Generic validation
 	ErrInvalidInput = APIError{"Invalid input data", "INVALID_INPUT", http.StatusBadRequest}

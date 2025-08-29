@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -93,22 +94,34 @@ func buildOrderResponse(orderSummary service.OrderSummary) responses.OrderRespon
 	return orderResponse
 }
 
+// @Summary Create order from cart
+// @Description Creates a new order from the user's cart with shipping information
+// @Tags orders
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param shippingInfo body AddShippingInfoToOrder true "Shipping information for the order"
+// @Success 200 {object} map[string]interface{} "Order created with payment intent"
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/orders [post]
 func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 	logger, err := GetComponentLogger(c, "orders")
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.Error(err)
 		return
 	}
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		c.Error(&customerrors.ErrUserNotFound)
 		return
 	}
 
 	var addShippingInfoToOrder AddShippingInfoToOrder
 
 	if err := c.ShouldBindBodyWithJSON(&addShippingInfoToOrder); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"Error": err.Error()})
+		c.Error(&customerrors.ErrInvalidJSON)
 		return
 	}
 
@@ -176,10 +189,19 @@ func (oh *OrdersHandlers) CreateSQSInputMessage(orderID string) (*sqs.SendMessag
 	}, nil
 }
 
+// @Summary View order history
+// @Description Retrieves the order history for the authenticated user
+// @Tags orders
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {array} service.OrderSummary
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/orders/history [get]
 func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		c.Error(&customerrors.ErrUserNotFound)
 		return
 	}
 
@@ -192,10 +214,23 @@ func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, orderSummaries)
 }
 
+// @Summary Cancel order
+// @Description Cancels a specific order for the authenticated user
+// @Tags orders
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "Order ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 403 {object} responses.ErrorResponse
+// @Failure 404 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/orders/{id}/cancel [post]
 func (oh *OrdersHandlers) CancelOrder(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		c.Error(&customerrors.ErrUserNotFound)
 		return
 	}
 
@@ -212,10 +247,23 @@ func (oh *OrdersHandlers) CancelOrder(c *gin.Context) {
 	})
 }
 
+// @Summary Get order information
+// @Description Retrieves detailed information about a specific order
+// @Tags orders
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "Order ID"
+// @Success 200 {object} service.OrderSummary
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 403 {object} responses.ErrorResponse
+// @Failure 404 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/orders/{id} [get]
 func (oh *OrdersHandlers) GetOrderInfo(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		c.Error(&customerrors.ErrUserNotFound)
 		return
 	}
 
@@ -230,6 +278,16 @@ func (oh *OrdersHandlers) GetOrderInfo(c *gin.Context) {
 	c.JSON(http.StatusOK, orderSummary)
 }
 
+// @Summary Get all orders (Admin only)
+// @Description Retrieves all orders in the system (admin access required)
+// @Tags orders
+// @Produce json
+// @Security ApiKeyAuth
+// @Success 200 {array} service.OrderSummary
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 403 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/orders [get]
 func (oh *OrdersHandlers) GetAllOrders(c *gin.Context) {
 	orderSummaries, err := oh.ordersService.GetAllOrders(c.Request.Context())
 	if err != nil {
@@ -240,6 +298,17 @@ func (oh *OrdersHandlers) GetAllOrders(c *gin.Context) {
 	c.JSON(http.StatusOK, orderSummaries)
 }
 
+// @Summary Get orders by status
+// @Description Retrieves orders filtered by status (admin access required)
+// @Tags orders
+// @Produce json
+// @Security ApiKeyAuth
+// @Param status query string false "Order status filter"
+// @Success 200 {array} service.OrderSummary
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 403 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/orders/status [get]
 func (oh *OrdersHandlers) GetOrdersByStatus(c *gin.Context) {
 	status := c.Query("status")
 	if status != "" {
@@ -262,6 +331,20 @@ func (oh *OrdersHandlers) GetOrdersByStatus(c *gin.Context) {
 	}
 }
 
+// @Summary Update order status (Admin only)
+// @Description Updates the status of a specific order (admin access required)
+// @Tags orders
+// @Produce json
+// @Security ApiKeyAuth
+// @Param id path string true "Order ID"
+// @Param status query string true "New order status"
+// @Success 202 {object} map[string]interface{}
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 403 {object} responses.ErrorResponse
+// @Failure 404 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/orders/{id}/status [put]
 func (oh *OrdersHandlers) UpdateOrderStatus(c *gin.Context) {
 
 	orderID := c.Param("id")

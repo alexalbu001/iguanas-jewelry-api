@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 
+	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry/internal/models"
 	"github.com/alexalbu001/iguanas-jewelry/internal/service"
 	"github.com/gin-gonic/gin"
@@ -28,10 +29,22 @@ func NewPaymentHandler(paymentService *service.PaymentService, ordersService *se
 	}
 }
 
+// @Summary Retry order payment
+// @Description Retries payment for a failed order by creating a new payment intent
+// @Tags payments
+// @Produce json
+// @Security ApiKeyAuth
+// @Param order_id path string true "Order ID"
+// @Success 200 {object} map[string]interface{} "Payment intent created"
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 404 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/payments/{order_id}/retry [post]
 func (p *PaymentHandler) RetryOrderPayment(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "not authenticated"})
+		c.Error(&customerrors.ErrUserNotFound)
 		return
 	}
 	orderID := c.Param("order_id")
@@ -49,11 +62,21 @@ func (p *PaymentHandler) RetryOrderPayment(c *gin.Context) {
 	})
 }
 
+// @Summary Handle Stripe webhook
+// @Description Processes Stripe webhook events for payment status updates
+// @Tags payments
+// @Accept json
+// @Produce json
+// @Param stripe-signature header string true "Stripe webhook signature"
+// @Success 200 {string} string "Webhook processed successfully"
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/payments/webhook [post]
 // This will get called by STRIPE
 func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 	logger, err := GetComponentLogger(c, "payment")
 	if err != nil {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "internal server error"})
+		c.Error(err)
 		return
 	}
 	webhookSecret := p.stripeWebhookSecret

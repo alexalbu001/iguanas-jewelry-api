@@ -27,14 +27,14 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 			FrameDeny:             true,
 			ContentTypeNosniff:    true,
 			ReferrerPolicy:        "strict-origin-when-cross-origin",
-			ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none';",
+			ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data: https:; connect-src 'self';",
 		}))
 	} else {
 		r.Use(secure.New(secure.Config{
 			FrameDeny:             true,
 			ContentTypeNosniff:    true,
 			ReferrerPolicy:        "strict-origin-when-cross-origin",
-			ContentSecurityPolicy: "default-src 'none'; frame-ancestors 'none';",
+			ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data: https:; connect-src 'self';",
 		}))
 	}
 	r.Use(middleware.CorrelationID())

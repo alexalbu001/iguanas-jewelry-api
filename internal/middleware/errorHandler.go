@@ -24,21 +24,16 @@ func ErrorHandler() gin.HandlerFunc {
 					"code":    httpErr.Code(),
 					"details": httpErr.Details(),
 				})
+				return
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"message": "Internal server error",
+					"code":    "INTERNAL_SERVER_ERROR",
+					"details": "",
+				})
+				return
 			}
-			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Internal server error",
-		})
+
 	}
 }
-
-// func TestHandler() gin.HandlerFunc {
-// 	fmt.Println("Test Handler1")
-// 	return func(c *gin.Context) {
-// 		fmt.Println("Test handler2")
-// 		c.Next()
-// 		fmt.Println("Test handler3")
-// 	}
-
-// }

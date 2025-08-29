@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	_ "github.com/alexalbu001/iguanas-jewelry/docs"
 	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
 	"github.com/alexalbu001/iguanas-jewelry/internal/config"
 	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
@@ -26,6 +27,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/stripe/stripe-go/v82"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -34,6 +37,24 @@ func init() {
 
 }
 
+// @title           Iguanas Jewelry API
+// @version         1.0
+// @description     A jewelry e-commerce API
+// @termsOfService  http://swagger.io/terms/
+
+// @contact.name   API Support
+// @contact.url    http://www.swagger.io/support
+// @contact.email  support@swagger.io
+
+// @license.name  Apache 2.0
+// @license.url   http://www.apache.org/licenses/LICENSE-2.0.html
+
+// @host      localhost:8080
+// @BasePath  /api/v1
+
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	ctx := context.Background()
 	r := gin.Default()
@@ -165,6 +186,11 @@ func main() {
 			"message": "Hello World",
 		})
 	})
+
+	// Add this after your routes setup:
+	if cfg.Env != "production" {
+		r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	}
 
 	srv := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.AppPort),
