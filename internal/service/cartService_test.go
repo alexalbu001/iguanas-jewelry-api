@@ -5,9 +5,9 @@ import (
 	"errors"
 	"testing"
 
-	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
-	"github.com/alexalbu001/iguanas-jewelry/internal/utils"
+	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/utils"
 )
 
 func setupFreshCartsService() *service.CartsService {

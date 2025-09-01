@@ -18,6 +18,7 @@ type Config struct {
 	AdminEmail string `envconfig:"ADMIN_EMAIL" default:"alexalbu001@gmail.com"`
 	Env        string `envconfig:"ENV" default:"dev"`
 	Version    string `envconfig:"VERSION" default:"test-123"`
+	JWTSecret  string `envconfig:"JWT_SECRET" required:"true"`
 }
 
 type DatabaseConfig struct {

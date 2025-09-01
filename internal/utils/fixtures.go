@@ -3,7 +3,7 @@ package utils
 import (
 	"time"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
 	"github.com/google/uuid"
 )
 

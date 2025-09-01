@@ -1,8 +1,8 @@
 package middleware
 
 import (
-	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/auth"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 

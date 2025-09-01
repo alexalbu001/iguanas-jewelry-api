@@ -6,8 +6,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/models"
-	"github.com/alexalbu001/iguanas-jewelry/internal/store"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/store"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
-	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
 	"github.com/google/uuid"
 )
 

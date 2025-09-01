@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
-	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
+	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/responses"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gin-gonic/gin"

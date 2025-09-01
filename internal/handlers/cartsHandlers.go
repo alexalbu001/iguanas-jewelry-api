@@ -3,8 +3,8 @@ package handlers
 import (
 	"net/http"
 
-	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
+	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 

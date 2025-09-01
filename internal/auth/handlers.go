@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/models"
-	"github.com/alexalbu001/iguanas-jewelry/internal/store"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/store"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
@@ -16,14 +16,16 @@ type AuthHandlers struct {
 	Sessions   *SessionStore
 	Config     *oauth2.Config
 	AdminEmail string
+	JWTService *JWTService
 }
 
-func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore, config *oauth2.Config, adminEmail string) *AuthHandlers {
+func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore, config *oauth2.Config, adminEmail string, jwtService *JWTService) *AuthHandlers {
 	return &AuthHandlers{
 		Store:      store,
 		Sessions:   sessions,
 		Config:     config,
 		AdminEmail: adminEmail,
+		JWTService: jwtService,
 	}
 }
 
@@ -96,12 +98,22 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 	// Use sessions instead of this:
 	// c.SetCookie("user_id", user.ID, 86400, "/", "", false, true)
 	// c.SetCookie("user_email", user.Email, 86400, "/", "", false, true)
-	sessionID, err := h.Sessions.CreateSession(user.ID, user.Email)
+	// sessionID, err := h.Sessions.CreateSession(user.ID, user.Email)
+	// if err != nil {
+	// 	c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create session"})
+	// 	return
+	// }
+	// c.SetCookie("session_id", sessionID, 86400, "/", "", true, true)
+	JWTToken, err := h.JWTService.GenerateToken(user.ID, user.Role)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Could not create session"})
-		return
+		c.Error(err)
 	}
-	c.SetCookie("session_id", sessionID, 86400, "/", "", true, true)
-
-	c.Redirect(http.StatusFound, "/")
+	c.JSON(http.StatusOK, gin.H{
+		"token": JWTToken,
+		"user": gin.H{
+			"id":    user.ID,
+			"email": user.Email,
+			"role":  user.Role,
+		},
+	})
 }

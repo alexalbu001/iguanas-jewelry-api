@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/models"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/jackc/pgx/v5"
 	"github.com/redis/go-redis/v9"
 )

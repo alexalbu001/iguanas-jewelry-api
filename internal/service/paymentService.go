@@ -7,8 +7,8 @@ import (
 
 	"math/rand/v2"
 
-	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
-	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/paymentintent"
 	"go.opentelemetry.io/otel"

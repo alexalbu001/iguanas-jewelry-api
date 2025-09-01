@@ -3,7 +3,7 @@ package utils
 import (
 	"fmt"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
 )
 
 func ExtractProductIDs(cartItems []models.CartItems) ([]string, error) {
