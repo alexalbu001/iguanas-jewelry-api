@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/auth"
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 )

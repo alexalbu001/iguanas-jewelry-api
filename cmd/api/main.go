@@ -10,16 +10,16 @@ import (
 	"syscall"
 	"time"
 
-	_ "github.com/alexalbu001/iguanas-jewelry/docs"
-	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
-	"github.com/alexalbu001/iguanas-jewelry/internal/config"
-	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
-	"github.com/alexalbu001/iguanas-jewelry/internal/middleware"
-	"github.com/alexalbu001/iguanas-jewelry/internal/routes"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
-	"github.com/alexalbu001/iguanas-jewelry/internal/store"
-	"github.com/alexalbu001/iguanas-jewelry/internal/telemetry"
-	"github.com/alexalbu001/iguanas-jewelry/internal/transaction"
+	_ "github.com/alexalbu001/iguanas-jewelry-api/docs"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/auth"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/config"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/handlers"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/middleware"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/routes"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/store"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/telemetry"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/transaction"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/exaring/otelpgx"
@@ -68,18 +68,21 @@ func main() {
 
 	if err := cfg.Validate(); err != nil {
 		logger.Error("Configuration validation failed", "error", err)
+		fmt.Errorf("Server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
 
 	telemtry, err := telemetry.InitTelemetry(ctx, "iguanas-jewelry", cfg.Version, cfg.Env)
 	if err != nil {
 		logger.Error("Failed to init telemetry:", "error", err)
+		fmt.Errorf("Server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
 	defer telemtry.Shutdown(ctx)
 
 	pgxConfig, err := pgxpool.ParseConfig(cfg.Database.DatabaseURL)
 	if err != nil {
+		fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Unable to parse database URL", "error", err)
 		os.Exit(1)
 	}
@@ -88,11 +91,13 @@ func main() {
 
 	dbpool, err := pgxpool.NewWithConfig(context.Background(), pgxConfig)
 	if err != nil {
+		fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Unable to connect to db", "error", err)
 		os.Exit(1)
 	}
 
 	if err := dbpool.Ping(ctx); err != nil {
+		fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Unable to ping database:", "error", err)
 		os.Exit(1)
 	}
@@ -102,6 +107,7 @@ func main() {
 
 	opt, err := redis.ParseURL(cfg.Redis.RedisURL)
 	if err != nil {
+		fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Unable to connect to redis", "error", err)
 		os.Exit(1)
 	}
@@ -112,6 +118,7 @@ func main() {
 
 	sdkConfig, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
+		fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Couldn't load AWS configuration:", "error", err)
 		os.Exit(1)
 	}
@@ -157,16 +164,17 @@ func main() {
 	cartsService := service.NewCartsService(cartsStore, productStore, userStore, tx)
 	ordersService := service.NewOrderService(ordersStore, productStore, cartsStore, tx)
 	paymentService := service.NewPaymentService(paymentStore, ordersStore)
+	jwtService := auth.NewJWTService(cfg.JWTSecret)
 	//create handlers with store
 
 	productHandlers := handlers.NewProductHandlers(productsService)
 	userHandlers := handlers.NewUserHandler(userService)
-	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore, conf, adminEmail)
+	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore, conf, adminEmail, jwtService)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
 	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient, queueURL)
 	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService, stripeWebhookSecret)
 
-	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
+	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 	rateLimitMiddleware := middleware.NewRateLimiter(rdb, "")
@@ -212,6 +220,7 @@ func main() {
 			}
 		} else {
 			if err := srv.ListenAndServeTLS("localhost+2.pem", "localhost+2-key.pem"); err != nil && err != http.ErrServerClosed {
+				fmt.Errorf("Server forced to shutdown", "error", err)
 				logger.Error("Server failed to start", "error", err)
 				os.Exit(1)
 			}
@@ -227,6 +236,7 @@ func main() {
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
+
 		logger.Error("Server forced to shutdown", "error", err)
 		os.Exit(1)
 	}

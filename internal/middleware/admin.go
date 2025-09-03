@@ -1,8 +1,9 @@
 package middleware
 
 import (
-	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/auth"
+	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
@@ -13,25 +14,25 @@ type AdminMiddleware struct {
 
 func (a *AdminMiddleware) RequireAdmin() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		userID, exists := c.Get("userID")
+		_, exists := c.Get("userID")
 		if !exists {
 			// RequireAuth should have set this!
-			c.AbortWithStatusJSON(500, gin.H{"error": "auth middleware failed"})
+			c.Error(&customerrors.ErrInternalServer)
 			return
 		}
 
-		user, err := a.User.GetUserByID(c.Request.Context(), userID.(string))
-		if err != nil {
-			c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+		role, exists := c.Get("role")
+		if !exists {
+			// RequireAuth should have set this!
+			c.Error(&customerrors.ErrInternalServer)
 			return
 		}
 
-		if user.Role == "admin" {
-			c.Set("role", user.Role)
+		if role == "admin" {
 			c.Next()
 			return
 		}
-		c.AbortWithStatusJSON(401, gin.H{"error": "unauthorized"})
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 }

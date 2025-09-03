@@ -1,6 +1,6 @@
 package handlers_test
 
-import "github.com/alexalbu001/iguanas-jewelry/internal/models"
+import "github.com/alexalbu001/iguanas-jewelry-api/internal/models"
 
 type MockUsersStore struct {
 	users *[]models.User

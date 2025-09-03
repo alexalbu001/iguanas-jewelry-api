@@ -1,8 +1,8 @@
 package handlers
 
 import (
-	"github.com/alexalbu001/iguanas-jewelry/internal/responses"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/responses"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 )
 
 func convertToCartResponse(summary service.CartSummary) responses.CartResponse {

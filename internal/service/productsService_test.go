@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/models"
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
-	"github.com/alexalbu001/iguanas-jewelry/internal/utils"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/utils"
 	"github.com/google/uuid"
 )
 

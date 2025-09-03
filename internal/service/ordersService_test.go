@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/alexalbu001/iguanas-jewelry/internal/service"
-	"github.com/alexalbu001/iguanas-jewelry/internal/utils"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/utils"
 )
 
 func setupFreshOrderService() *service.OrdersService {

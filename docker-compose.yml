@@ -1,6 +1,36 @@
 services:
-  main-app:
-    image: iguanas-jewelry:0.1
+  # main-app:
+  #   build: .
+  #   restart: always
+  #   ports:
+  #     - "${PORT}:${PORT}"
+  #   environment:
+  #     - PORT=${PORT}
+  #     - ENV=${ENV}
+  #     - LOG_LEVEL=${LOG_LEVEL}
+  #     - LOG_FORMAT=${LOG_FORMAT}
+  #     - JWT_SECRET=${JWT_SECRET}
+  #     - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+  #     - REDIS_URL=redis://redis:6379/0
+  #     - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+  #     - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+  #     - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+  #     - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+  #     - REDIRECT_URL=${REDIRECT_URL}
+  #     - ADMIN_EMAIL=${ADMIN_EMAIL}
+  #     - QUEUE_URL=http://aws:4566/000000000000/order-expiration-queue
+  #     - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+  #     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  #     - AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
+  #     - AWS_ENDPOINT_URL_SQS=${AWS_ENDPOINT_URL_SQS}
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #     - aws
+  #   volumes:
+  #     - ./localhost+2.pem:/app/localhost+2.pem
+  #     - ./localhost+2-key.pem:/app/localhost+2-key.pem
+# 
   postgres:
     image: postgres:latest
     restart: always
@@ -47,3 +77,4 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
+

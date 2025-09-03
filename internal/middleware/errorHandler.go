@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	customerrors "github.com/alexalbu001/iguanas-jewelry/internal/customErrors"
+	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
 	"github.com/gin-gonic/gin"
 )
 

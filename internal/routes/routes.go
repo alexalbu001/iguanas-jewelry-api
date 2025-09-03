@@ -1,10 +1,10 @@
 package routes
 
 import (
-	"github.com/alexalbu001/iguanas-jewelry/internal/auth"
-	"github.com/alexalbu001/iguanas-jewelry/internal/config"
-	"github.com/alexalbu001/iguanas-jewelry/internal/handlers"
-	"github.com/alexalbu001/iguanas-jewelry/internal/middleware"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/auth"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/config"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/handlers"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/secure"
 	"github.com/gin-gonic/gin"
