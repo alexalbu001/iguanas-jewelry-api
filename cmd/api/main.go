@@ -174,7 +174,7 @@ func main() {
 	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient, queueURL)
 	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService, stripeWebhookSecret)
 
-	authMiddleware := middleware.NewAuthMiddleware(sessionsStore)
+	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 	rateLimitMiddleware := middleware.NewRateLimiter(rdb, "")

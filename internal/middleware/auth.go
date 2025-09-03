@@ -1,12 +1,14 @@
 package middleware
 
 import (
+	"strings"
+
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/auth"
+	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
 	"github.com/gin-gonic/gin"
 )
 
 type AuthMiddleware struct {
-	Sessions   *auth.SessionStore
 	JWTService *auth.JWTService
 }
 
@@ -30,11 +32,37 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 		// c.Set("userEmail", retrievedSession.Email)
 		// c.Next()
 
+		reqToken := c.GetHeader("Authorization")
+		if reqToken == "" {
+			c.Error(&customerrors.ErrUserUnauthorized)
+			return
+		}
+		splitToken := strings.Split(reqToken, "Bearer ")
+		if len(splitToken) != 2 {
+			c.Error(&customerrors.ErrUserUnauthorized)
+			return
+		}
+		reqToken = splitToken[1]
+
+		claim, err := m.JWTService.ValidateToken(reqToken)
+		if err != nil {
+			c.Error(&customerrors.ErrUserUnauthorized)
+			return
+		}
+
+		if claim.Issuer != "iguanas-jewelry" {
+			c.Error(&customerrors.ErrUserUnauthorized)
+			return
+		}
+
+		c.Set("userID", claim.UserID)
+		c.Set("role", claim.Role)
+		c.Next()
 	}
 }
 
-func NewAuthMiddleware(s *auth.SessionStore) *AuthMiddleware {
+func NewAuthMiddleware(jwtService *auth.JWTService) *AuthMiddleware {
 	return &AuthMiddleware{
-		Sessions: s,
+		JWTService: jwtService,
 	}
 }

@@ -63,9 +63,11 @@ var (
 	ErrInvalidEmail            = APIError{"Invalid email", "INVALID_EMAIL", http.StatusBadRequest}
 	ErrInvalidUUID             = APIError{"Invalid UUID format", "INVALID_UUID", http.StatusBadRequest}
 	ErrInvalidJSON             = APIError{"Invalid JSON payload", "INVALID_JSON", http.StatusBadRequest}
+	ErrUserUnauthorized        = APIError{"User unauthorized", "USER_UNAUTHORIZED", http.StatusUnauthorized}
 
 	// Generic validation
-	ErrInvalidInput = APIError{"Invalid input data", "INVALID_INPUT", http.StatusBadRequest}
+	ErrInvalidInput   = APIError{"Invalid input data", "INVALID_INPUT", http.StatusBadRequest}
+	ErrInternalServer = APIError{"Internal Server Error", "INTERNAL_SERVER_ERROR", http.StatusInternalServerError}
 )
 
 type ErrInsufficientStock struct {

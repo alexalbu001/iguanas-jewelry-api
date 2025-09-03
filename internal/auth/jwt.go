@@ -8,8 +8,8 @@ import (
 )
 
 type JWTClaim struct {
-	userID               string `json:"name"`
-	role                 string `json:"role"`
+	UserID               string `json:"user_id"`
+	Role                 string `json:"role"`
 	jwt.RegisteredClaims        //embedded
 }
 
@@ -25,8 +25,8 @@ func NewJWTService(secret string) *JWTService {
 
 func (j *JWTService) GenerateToken(userID, role string) (string, error) {
 	claims := JWTClaim{
-		userID: userID,
-		role:   role,
+		UserID: userID,
+		Role:   role,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
