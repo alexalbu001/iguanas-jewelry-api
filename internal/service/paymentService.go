@@ -173,7 +173,7 @@ func (p *PaymentService) RetryOrderPayment(ctx context.Context, userID, orderID,
 			failedCount++
 		}
 	}
-	if failedCount > 3 {
+	if failedCount > 5 {
 		return "", &customerrors.ErrPaymentsTooManyRetries
 	}
 

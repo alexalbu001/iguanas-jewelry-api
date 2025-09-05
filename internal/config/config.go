@@ -19,6 +19,7 @@ type Config struct {
 	Env        string `envconfig:"ENV" default:"dev"`
 	Version    string `envconfig:"VERSION" default:"test-123"`
 	JWTSecret  string `envconfig:"JWT_SECRET" required:"true"`
+	WorkerMode string `envconfig:"WORKER_MODE" default:scheduler`
 }
 
 type DatabaseConfig struct {

@@ -45,7 +45,7 @@ func (h *ProductHandlers) GetProducts(c *gin.Context) {
 // @Success 201 {object} models.Product
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/products [post]
+// @Router /api/v1/admin/products [post]
 func (h *ProductHandlers) PostProducts(c *gin.Context) {
 	var newProduct models.Product
 	if err := c.ShouldBindJSON(&newProduct); err != nil {
@@ -96,7 +96,7 @@ func (h *ProductHandlers) GetProductByID(c *gin.Context) {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/products/{id} [put]
+// @Router /api/v1/admin/products/{id} [put]
 func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 	id := c.Param("id")
 	if err := uuid.Validate(id); err != nil {
@@ -125,7 +125,7 @@ func (h *ProductHandlers) UpdateProductByID(c *gin.Context) {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/products/{id} [delete]
+// @Router /api/v1/admin/products/{id} [delete]
 func (h *ProductHandlers) DeleteProductByID(c *gin.Context) {
 	id := c.Param("id")
 	if err := uuid.Validate(id); err != nil {

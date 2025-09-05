@@ -40,7 +40,7 @@ func NewPaymentHandler(paymentService *service.PaymentService, ordersService *se
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/payments/{order_id}/retry [post]
+// @Router /api/v1/payment/intents/{order_id} [post]
 func (p *PaymentHandler) RetryOrderPayment(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -71,7 +71,7 @@ func (p *PaymentHandler) RetryOrderPayment(c *gin.Context) {
 // @Success 200 {string} string "Webhook processed successfully"
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/payments/webhook [post]
+// @Router /webhooks/stripe [post]
 // This will get called by STRIPE
 func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 	logger, err := GetComponentLogger(c, "payment")
@@ -135,6 +135,13 @@ func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 		if err != nil {
 			c.Error(err)
 			return
+		}
+
+		// Clear the user's cart after successful payment
+		err = p.ordersService.ClearCartAfterPayment(c.Request.Context(), orderSummary.UserID)
+		if err != nil {
+			logError(logger, "failed to clear cart after payment", err, "order_id", orderID, "user_id", orderSummary.UserID)
+			// Don't return error here - payment was successful, cart clearing is secondary
 		}
 
 		fmt.Printf("Payment successful for order: %s !", orderID)

@@ -56,6 +56,9 @@ services:
     restart: always
     ports:
       - "4566:4566"
+    environment:
+      - SERVICES=sqs,lambda
+      - LAMBDA_RUNTIME_ENVIRONMENT_TIMEOUT=2000
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
 

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
 )
 
@@ -20,19 +22,23 @@ type OrdersHandlers struct {
 	paymentService *service.PaymentService
 	sqsClient      *sqs.Client
 	queueURL       string
+	workerMode     string
+	scheduler      gocron.Scheduler // interfaces dont need *
 }
 
 type ExpirationMessage struct {
 	OrderID   string    `json:"order_id"`
-	CreatedAt time.Time `json:"created_at`
+	CreatedAt time.Time `json:"created_at"`
 }
 
-func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *service.PaymentService, sqsClient *sqs.Client, queueURL string) *OrdersHandlers {
+func NewOrdersHandlers(ordersService *service.OrdersService, paymentService *service.PaymentService, sqsClient *sqs.Client, queueURL, workerMode string, scheduler gocron.Scheduler) *OrdersHandlers {
 	return &OrdersHandlers{
 		ordersService:  ordersService,
 		paymentService: paymentService,
 		sqsClient:      sqsClient,
 		queueURL:       queueURL,
+		workerMode:     workerMode,
+		scheduler:      scheduler,
 	}
 }
 
@@ -105,7 +111,7 @@ func buildOrderResponse(orderSummary service.OrderSummary) responses.OrderRespon
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/orders [post]
+// @Router /api/v1/orders/checkout [post]
 func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 	logger, err := GetComponentLogger(c, "orders")
 	if err != nil {
@@ -155,15 +161,25 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 		return
 	}
 
-	input, err := oh.CreateSQSInputMessage(orderSummary.ID)
-	if err != nil {
-		c.Error(err)
-		return
-	}
-	_, err = oh.sqsClient.SendMessage(c.Request.Context(), input)
-	if err != nil {
-		// Log but don't fail the order (best effort approach)
-		logError(logger, "failed to send message to sqs", err, "order_id", orderSummary.ID)
+	if oh.workerMode == "scheduler" {
+		_, err := oh.scheduler.NewJob(
+			gocron.OneTimeJob(gocron.OneTimeJobStartDateTime(time.Now().Add(15*time.Minute))),
+			gocron.NewTask(oh.ExpireOrders, context.Background(), orderSummary.ID),
+		)
+		if err != nil {
+			logError(logger, "failed to schedule job", err, "user_id", userID, "order_id", orderSummary.ID)
+		}
+	} else {
+		input, err := oh.CreateSQSInputMessage(orderSummary.ID)
+		if err != nil {
+			c.Error(err)
+			return
+		}
+		_, err = oh.sqsClient.SendMessage(c.Request.Context(), input)
+		if err != nil {
+			// Log but don't fail the order (best effort approach)
+			logError(logger, "failed to send message to sqs", err, "order_id", orderSummary.ID)
+		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -185,7 +201,7 @@ func (oh *OrdersHandlers) CreateSQSInputMessage(orderID string) (*sqs.SendMessag
 	return &sqs.SendMessageInput{
 		QueueUrl:     aws.String(oh.queueURL),
 		MessageBody:  aws.String(string(messageBody)),
-		DelaySeconds: 900, // 15 minutes
+		DelaySeconds: 10, // 15 minutes
 	}, nil
 }
 
@@ -197,7 +213,7 @@ func (oh *OrdersHandlers) CreateSQSInputMessage(orderID string) (*sqs.SendMessag
 // @Success 200 {array} service.OrderSummary
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/orders/history [get]
+// @Router /api/v1/orders [get]
 func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -226,7 +242,7 @@ func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
 // @Failure 403 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/orders/{id}/cancel [post]
+// @Router /api/v1/orders/{id}/cancel [put]
 func (oh *OrdersHandlers) CancelOrder(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -287,7 +303,7 @@ func (oh *OrdersHandlers) GetOrderInfo(c *gin.Context) {
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 403 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/orders [get]
+// @Router /api/v1/admin/orders [get]
 func (oh *OrdersHandlers) GetAllOrders(c *gin.Context) {
 	orderSummaries, err := oh.ordersService.GetAllOrders(c.Request.Context())
 	if err != nil {
@@ -344,7 +360,7 @@ func (oh *OrdersHandlers) GetOrdersByStatus(c *gin.Context) {
 // @Failure 403 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/orders/{id}/status [put]
+// @Router /api/v1/admin/orders/{id}/status [put]
 func (oh *OrdersHandlers) UpdateOrderStatus(c *gin.Context) {
 
 	orderID := c.Param("id")
@@ -359,4 +375,24 @@ func (oh *OrdersHandlers) UpdateOrderStatus(c *gin.Context) {
 		"order_id": orderID,
 		"message":  "Status modified",
 	})
+}
+
+//	func (oh *OrdersHandlers) ExpireOrders(ctx context.Context, orderID string) error {
+//		orderStatus, err := oh.ordersService.GetOrderStatus(ctx, orderID)
+//		if err!=nil{
+//			c
+//		}
+//	}
+func (oh *OrdersHandlers) ExpireOrders(ctx context.Context, orderID string) error {
+
+	orderStatus, err := oh.ordersService.GetOrderStatus(ctx, orderID)
+	if err != nil {
+		return err
+	}
+
+	if orderStatus == "pending" {
+		//No need to check stripe: Payment succeeds → Webhook fires → Status: "paid" // Payment fails → Webhook fires → Status: "failed"
+		oh.ordersService.CancelOrderAndRestoreStock(ctx, orderID)
+	}
+	return nil
 }
