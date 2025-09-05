@@ -279,10 +279,7 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 			}
 		}
 
-		err = o.cartsStore.EmptyCartTx(ctx, userID, tx)
-		if err != nil {
-			return fmt.Errorf("Error clearing cart: %w", err)
-		}
+		// Note: Cart is NOT cleared here - it will be cleared only after successful payment
 		return nil
 	})
 	if err != nil {
@@ -558,6 +555,20 @@ func (o *OrdersService) GetOrderByIDAdmin(ctx context.Context, orderID string) (
 	return orderSummary, nil
 }
 
+func (o *OrdersService) GetOrderStatus(ctx context.Context, orderID string) (string, error) {
+	err := uuid.Validate(orderID)
+	if err != nil {
+		return "", &customerrors.ErrInvalidInput
+	}
+
+	order, err := o.orderStore.GetOrderByID(ctx, orderID)
+	if err != nil {
+		return "", err
+	}
+
+	return order.Status, nil
+}
+
 func (o *OrdersService) ValidateShippingInfo(ctx context.Context, shippinginfo ShippingInfo) (ShippingInfo, error) {
 
 	info := o.normalizeShippingInfo(shippinginfo)
@@ -611,4 +622,48 @@ func (o *OrdersService) normalizeShippingInfo(info ShippingInfo) ShippingInfo {
 		info.PostalCode = strings.ReplaceAll(info.PostalCode, " ", "")
 	}
 	return info
+}
+
+// ClearCartAfterPayment clears the user's cart after successful payment
+func (o *OrdersService) ClearCartAfterPayment(ctx context.Context, userID string) error {
+	err := o.cartsStore.EmptyCart(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to clear cart after payment: %w", err)
+	}
+	return nil
+}
+
+// CancelOrderAndRestoreStock cancels an order and restores the stock
+func (o *OrdersService) CancelOrderAndRestoreStock(ctx context.Context, orderID string) error {
+
+	// Get order items
+	orderItems, err := o.orderStore.GetOrderItems(ctx, orderID)
+	if err != nil {
+		return fmt.Errorf("failed to get order items: %w", err)
+	}
+
+	// Update order status and restore stock in a transaction
+	err = o.TxManager.WithTransaction(ctx, func(tx pgx.Tx) error {
+		// Update order status to cancelled
+		err = o.orderStore.UpdateOrderStatusTx(ctx, "cancelled", orderID, tx)
+		if err != nil {
+			return fmt.Errorf("failed to update order status: %w", err)
+		}
+
+		// Restore stock for each item
+		for _, item := range orderItems {
+			err = o.productsStore.UpdateStockTx(ctx, item.ProductID, item.Quantity, tx)
+			if err != nil {
+				return fmt.Errorf("failed to restore stock for product %s: %w", item.ProductID, err)
+			}
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to cancel order and restore stock: %w", err)
+	}
+
+	return nil
 }

@@ -25,7 +25,7 @@ func NewUserHandler(userService *service.UserService) *UserHandlers {
 // @Produce json
 // @Success 200 {array} models.User
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/users [get]
+// @Router /api/v1/admin/users [get]
 func (u *UserHandlers) GetUsers(c *gin.Context) {
 	users, err := u.UserService.GetUsers(c.Request.Context())
 	if err != nil {
@@ -44,7 +44,7 @@ func (u *UserHandlers) GetUsers(c *gin.Context) {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/users/{id} [get]
+// @Router /api/v1/admin/users/{id} [get]
 func (u *UserHandlers) GetUserByID(c *gin.Context) {
 	id := c.Param("id")
 	user, err := u.UserService.GetUserByID(c.Request.Context(), id)
@@ -66,7 +66,7 @@ func (u *UserHandlers) GetUserByID(c *gin.Context) {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/users/{id} [put]
+// @Router /api/v1/admin/users/{id} [put]
 func (u *UserHandlers) UpdateUserByID(c *gin.Context) {
 	id := c.Param("id")
 
@@ -93,7 +93,7 @@ func (u *UserHandlers) UpdateUserByID(c *gin.Context) {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/users/{id} [delete]
+// @Router /api/v1/admin/users/{id} [delete]
 func (u *UserHandlers) DeleteUserByID(c *gin.Context) {
 	id := c.Param("id")
 	err := u.UserService.DeleteUserByID(c.Request.Context(), id)
@@ -115,7 +115,7 @@ func (u *UserHandlers) DeleteUserByID(c *gin.Context) {
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/users/{id}/role [put]
+// @Router /api/v1/admin/users/{id}/role [put]
 func (u *UserHandlers) UpdateUserRole(c *gin.Context) {
 	id := c.Param("id")
 
@@ -148,7 +148,7 @@ func (u *UserHandlers) UpdateUserRole(c *gin.Context) {
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/users/profile [get]
+// @Router /api/v1/user/profile [get]
 func (u *UserHandlers) GetMyProfile(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -174,7 +174,7 @@ func (u *UserHandlers) GetMyProfile(c *gin.Context) {
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/users/profile [delete]
+// @Router /api/v1/user/account [delete]
 func (u *UserHandlers) DeleteMyAccount(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {

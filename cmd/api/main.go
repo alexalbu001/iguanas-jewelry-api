@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/exaring/otelpgx"
 	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
 	"github.com/stripe/stripe-go/v82"
@@ -135,7 +136,13 @@ func main() {
 	}
 	adminEmail := cfg.AdminEmail
 	queueURL := cfg.SQS.QueueURL
+	workerMode := cfg.WorkerMode
 	stripeWebhookSecret := cfg.Stripe.StripeWebhookSecret
+	scheduler, err := gocron.NewScheduler()
+	if err != nil {
+		logger.Error("Couldn't load scheduler:", "error", err)
+		os.Exit(1)
+	}
 
 	// Create SQS client
 	sqsClient := sqs.NewFromConfig(sdkConfig)
@@ -171,7 +178,7 @@ func main() {
 	userHandlers := handlers.NewUserHandler(userService)
 	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore, conf, adminEmail, jwtService)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
-	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient, queueURL)
+	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient, queueURL, workerMode, scheduler)
 	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService, stripeWebhookSecret)
 
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
@@ -180,6 +187,10 @@ func main() {
 	rateLimitMiddleware := middleware.NewRateLimiter(rdb, "")
 
 	routes.SetupRoutes(r, cfg, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware, rateLimitMiddleware)
+	if workerMode == "scheduler" {
+		scheduler.Start()
+		logger.Info("Starting scheduler")
+	}
 
 	r.GET("/ping", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
@@ -231,6 +242,9 @@ func main() {
 
 	<-quit
 	logger.Info("Shutting down server...")
+	if workerMode == "scheduler" {
+		scheduler.Shutdown()
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

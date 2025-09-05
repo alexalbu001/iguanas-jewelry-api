@@ -69,13 +69,21 @@ func handleExpiration(ctx context.Context, sqsEvent events.SQSEvent) ([]events.S
 			continue
 		}
 
-		_, err = ordersService.GetOrderByIDAdmin(ctx, msg.OrderID)
+		order, err := ordersService.GetOrderByIDAdmin(ctx, msg.OrderID)
 		if err != nil {
 			batchFailures = append(batchFailures, events.SQSBatchItemFailure{
 				ItemIdentifier: record.MessageId,
 			})
 			continue
 		}
+
+		// Check if cancellation is still needed
+		if order.Status != "pending" {
+			log.Printf("⏭️ Order %s already has status: %s, skipping cancellation",
+				msg.OrderID, order.Status)
+			continue
+		}
+
 		err = ordersService.UpdateOrderStatus(ctx, "cancelled", msg.OrderID)
 		if err != nil {
 			batchFailures = append(batchFailures, events.SQSBatchItemFailure{

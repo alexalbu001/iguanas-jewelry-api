@@ -182,169 +182,7 @@ info:
   title: Iguanas Jewelry API
   version: "1.0"
 paths:
-  /api/v1/cart:
-    delete:
-      description: Removes all items from the user's cart
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Clear cart
-      tags:
-      - carts
-    get:
-      description: Retrieves the current user's cart with all items
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Get user cart
-      tags:
-      - carts
-    post:
-      consumes:
-      - application/json
-      description: Adds a product to the user's cart with specified quantity
-      parameters:
-      - description: Add to cart request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.AddToCartRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Add item to cart
-      tags:
-      - carts
-  /api/v1/cart/{id}:
-    delete:
-      description: Removes a specific item from the user's cart
-      parameters:
-      - description: Cart item ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            additionalProperties: true
-            type: object
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Remove item from cart
-      tags:
-      - carts
-    put:
-      consumes:
-      - application/json
-      description: Updates the quantity of a specific item in the user's cart
-      parameters:
-      - description: Cart item ID
-        in: path
-        name: id
-        required: true
-        type: string
-      - description: Quantity update request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.QuantityRequest'
-      produces:
-      - application/json
-      responses:
-        "202":
-          description: Accepted
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Update cart item quantity
-      tags:
-      - carts
-  /api/v1/orders:
+  /api/v1/admin/orders:
     get:
       description: Retrieves all orders in the system (admin access required)
       produces:
@@ -373,126 +211,7 @@ paths:
       summary: Get all orders (Admin only)
       tags:
       - orders
-    post:
-      consumes:
-      - application/json
-      description: Creates a new order from the user's cart with shipping information
-      parameters:
-      - description: Shipping information for the order
-        in: body
-        name: shippingInfo
-        required: true
-        schema:
-          $ref: '#/definitions/handlers.AddShippingInfoToOrder'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Order created with payment intent
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Create order from cart
-      tags:
-      - orders
-  /api/v1/orders/{id}:
-    get:
-      description: Retrieves detailed information about a specific order
-      parameters:
-      - description: Order ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/service.OrderSummary'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Get order information
-      tags:
-      - orders
-  /api/v1/orders/{id}/cancel:
-    post:
-      description: Cancels a specific order for the authenticated user
-      parameters:
-      - description: Order ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Cancel order
-      tags:
-      - orders
-  /api/v1/orders/{id}/status:
+  /api/v1/admin/orders/{id}/status:
     put:
       description: Updates the status of a specific order (admin access required)
       parameters:
@@ -539,151 +258,7 @@ paths:
       summary: Update order status (Admin only)
       tags:
       - orders
-  /api/v1/orders/history:
-    get:
-      description: Retrieves the order history for the authenticated user
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/service.OrderSummary'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: View order history
-      tags:
-      - orders
-  /api/v1/orders/status:
-    get:
-      description: Retrieves orders filtered by status (admin access required)
-      parameters:
-      - description: Order status filter
-        in: query
-        name: status
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/service.OrderSummary'
-            type: array
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "403":
-          description: Forbidden
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Get orders by status
-      tags:
-      - orders
-  /api/v1/payments/{order_id}/retry:
-    post:
-      description: Retries payment for a failed order by creating a new payment intent
-      parameters:
-      - description: Order ID
-        in: path
-        name: order_id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Payment intent created
-          schema:
-            additionalProperties: true
-            type: object
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "401":
-          description: Unauthorized
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      security:
-      - ApiKeyAuth: []
-      summary: Retry order payment
-      tags:
-      - payments
-  /api/v1/payments/webhook:
-    post:
-      consumes:
-      - application/json
-      description: Processes Stripe webhook events for payment status updates
-      parameters:
-      - description: Stripe webhook signature
-        in: header
-        name: stripe-signature
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Webhook processed successfully
-          schema:
-            type: string
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      summary: Handle Stripe webhook
-      tags:
-      - payments
-  /api/v1/products:
-    get:
-      description: Retrieves a list of all available products
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            items:
-              $ref: '#/definitions/models.Product'
-            type: array
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      summary: Fetch all products
-      tags:
-      - products
+  /api/v1/admin/products:
     post:
       consumes:
       - application/json
@@ -713,7 +288,7 @@ paths:
       summary: Post a Product
       tags:
       - products
-  /api/v1/products/{id}:
+  /api/v1/admin/products/{id}:
     delete:
       description: Remove a product
       parameters:
@@ -743,36 +318,6 @@ paths:
           schema:
             $ref: '#/definitions/responses.ErrorResponse'
       summary: Remove a product
-      tags:
-      - products
-    get:
-      description: Retrieve a product by ID
-      parameters:
-      - description: Product ID
-        in: path
-        name: id
-        required: true
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Product'
-        "400":
-          description: Bad Request
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "404":
-          description: Not Found
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-        "500":
-          description: Internal Server Error
-          schema:
-            $ref: '#/definitions/responses.ErrorResponse'
-      summary: Show a product
       tags:
       - products
     put:
@@ -813,7 +358,7 @@ paths:
       summary: Change a product
       tags:
       - products
-  /api/v1/users:
+  /api/v1/admin/users:
     get:
       description: Fetches all users
       produces:
@@ -832,7 +377,7 @@ paths:
       summary: Get a list of all users
       tags:
       - users
-  /api/v1/users/{id}:
+  /api/v1/admin/users/{id}:
     delete:
       description: Removes a user from the system
       parameters:
@@ -932,7 +477,7 @@ paths:
       summary: Update user by ID
       tags:
       - users
-  /api/v1/users/{id}/role:
+  /api/v1/admin/users/{id}/role:
     put:
       consumes:
       - application/json
@@ -972,7 +517,436 @@ paths:
       summary: Update user role
       tags:
       - users
-  /api/v1/users/profile:
+  /api/v1/cart:
+    delete:
+      description: Removes all items from the user's cart
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Clear cart
+      tags:
+      - carts
+    get:
+      description: Retrieves the current user's cart with all items
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get user cart
+      tags:
+      - carts
+    post:
+      consumes:
+      - application/json
+      description: Adds a product to the user's cart with specified quantity
+      parameters:
+      - description: Add to cart request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.AddToCartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Add item to cart
+      tags:
+      - carts
+  /api/v1/cart/items/{id}:
+    delete:
+      description: Removes a specific item from the user's cart
+      parameters:
+      - description: Cart item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Remove item from cart
+      tags:
+      - carts
+    put:
+      consumes:
+      - application/json
+      description: Updates the quantity of a specific item in the user's cart
+      parameters:
+      - description: Cart item ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Quantity update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.QuantityRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Update cart item quantity
+      tags:
+      - carts
+  /api/v1/orders:
+    get:
+      description: Retrieves the order history for the authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/service.OrderSummary'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: View order history
+      tags:
+      - orders
+  /api/v1/orders/{id}:
+    get:
+      description: Retrieves detailed information about a specific order
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/service.OrderSummary'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get order information
+      tags:
+      - orders
+  /api/v1/orders/{id}/cancel:
+    put:
+      description: Cancels a specific order for the authenticated user
+      parameters:
+      - description: Order ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Cancel order
+      tags:
+      - orders
+  /api/v1/orders/checkout:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new order from the user's cart with shipping information
+      parameters:
+      - description: Shipping information for the order
+        in: body
+        name: shippingInfo
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.AddShippingInfoToOrder'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Order created with payment intent
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Create order from cart
+      tags:
+      - orders
+  /api/v1/orders/status:
+    get:
+      description: Retrieves orders filtered by status (admin access required)
+      parameters:
+      - description: Order status filter
+        in: query
+        name: status
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/service.OrderSummary'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get orders by status
+      tags:
+      - orders
+  /api/v1/payment/intents/{order_id}:
+    post:
+      description: Retries payment for a failed order by creating a new payment intent
+      parameters:
+      - description: Order ID
+        in: path
+        name: order_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Payment intent created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Retry order payment
+      tags:
+      - payments
+  /api/v1/products:
+    get:
+      description: Retrieves a list of all available products
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Product'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Fetch all products
+      tags:
+      - products
+  /api/v1/products/{id}:
+    get:
+      description: Retrieve a product by ID
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Product'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Show a product
+      tags:
+      - products
+  /api/v1/user/account:
     delete:
       description: Allows authenticated users to delete their own account
       produces:
@@ -1000,6 +974,7 @@ paths:
       summary: Delete my account
       tags:
       - users
+  /api/v1/user/profile:
     get:
       description: Retrieves the authenticated user's profile information
       produces:
@@ -1026,6 +1001,35 @@ paths:
       summary: Get my profile
       tags:
       - users
+  /webhooks/stripe:
+    post:
+      consumes:
+      - application/json
+      description: Processes Stripe webhook events for payment status updates
+      parameters:
+      - description: Stripe webhook signature
+        in: header
+        name: stripe-signature
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Webhook processed successfully
+          schema:
+            type: string
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Handle Stripe webhook
+      tags:
+      - payments
 securityDefinitions:
   ApiKeyAuth:
     in: header

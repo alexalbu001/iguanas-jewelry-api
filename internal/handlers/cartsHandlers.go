@@ -121,7 +121,7 @@ func (d *CartsHandlers) AddToCart(c *gin.Context) {
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/cart/{id} [put]
+// @Router /api/v1/cart/items/{id} [put]
 func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
@@ -158,7 +158,7 @@ func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
-// @Router /api/v1/cart/{id} [delete]
+// @Router /api/v1/cart/items/{id} [delete]
 func (d *CartsHandlers) RemoveFromCart(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
