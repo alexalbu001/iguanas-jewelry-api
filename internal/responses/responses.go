@@ -1,5 +1,7 @@
 package responses
 
+import "github.com/alexalbu001/iguanas-jewelry-api/internal/models"
+
 // Carts
 type CartItemResponse struct {
 	CartItemID  string  `json:"cart_item_id"`
@@ -73,4 +75,16 @@ type UserProfileResponse struct {
 	Name      string `json:"name" binding:"required"`
 	Email     string `json:"email" binding:"required,email"`
 	CreatedAt string `json:"created_at"`
+}
+
+// Products
+
+type ProductDetailResponse struct {
+	models.Product
+	Images []models.ProductImage `json:"images,omitempty"`
+}
+
+type ProductListResponse struct {
+	models.Product
+	PrimaryImageURL *string `json:"primary_image_url,omitempty"`
 }

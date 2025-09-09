@@ -181,3 +181,21 @@ func (c *CachedProductsStore) UpdateStock(ctx context.Context, productID string,
 func (c *CachedProductsStore) UpdateStockTx(ctx context.Context, productID string, stockChange int, tx pgx.Tx) error {
 	return c.store.UpdateStockTx(ctx, productID, stockChange, tx)
 }
+
+// Get all products including soft-deleted ones (for admin)
+func (c *CachedProductsStore) GetAllIncludingDeleted(ctx context.Context) ([]models.Product, error) {
+	// For admin operations, we don't cache deleted products
+	// Always fetch from database to ensure we get the latest state
+	return c.store.GetAllIncludingDeleted(ctx)
+}
+
+// Restore soft-deleted product
+func (c *CachedProductsStore) Restore(ctx context.Context, id string) error {
+	err := c.store.Restore(ctx, id)
+	if err != nil {
+		return err
+	}
+	// Invalidate cache when restoring a product
+	c.redisClient.Del(ctx, "products:all", "product:"+id).Err()
+	return nil
+}

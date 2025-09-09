@@ -34,8 +34,9 @@ func NewProductStore(connection *pgxpool.Pool) *ProductsStore { // constructor
 
 func (h *ProductsStore) GetAll(ctx context.Context) ([]models.Product, error) {
 	sql := `
-	SELECT id, name, price, description, category, stock_quantity, created_at, updated_at
+	SELECT id, name, price, description, category, stock_quantity, created_at, updated_at, deleted_at
 	FROM products
+	WHERE deleted_at IS NULL
 	ORDER BY created_at DESC
 	`
 	rows, err := h.dbpool.Query(ctx, sql)
@@ -56,6 +57,7 @@ func (h *ProductsStore) GetAll(ctx context.Context) ([]models.Product, error) {
 			&product.StockQuantity,
 			&product.CreatedAt,
 			&product.UpdatedAt,
+			&product.DeletedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("Error scanning products row: %w", err)
@@ -228,16 +230,17 @@ func (h *ProductsStore) Update(ctx context.Context, id string, product models.Pr
 
 func (h *ProductsStore) Delete(ctx context.Context, id string) error {
 	sql := `
-	DELETE FROM products
-	WHERE id=$1`
+	UPDATE products
+	SET deleted_at = $1
+	WHERE id = $2 AND deleted_at IS NULL`
 
-	commandTag, err := h.dbpool.Exec(ctx, sql, id)
+	commandTag, err := h.dbpool.Exec(ctx, sql, time.Now(), id)
 	if err != nil {
-		return fmt.Errorf("Error deleting product: %w", err)
+		return fmt.Errorf("Error soft deleting product: %w", err)
 	}
 
 	if commandTag.RowsAffected() == 0 {
-		return fmt.Errorf("Product not found with id: %s", id)
+		return &customerrors.ErrProductNotFound
 	}
 	return nil
 	// for i, value := range h.store {
@@ -251,16 +254,17 @@ func (h *ProductsStore) Delete(ctx context.Context, id string) error {
 
 func (h *ProductsStore) DeleteTx(ctx context.Context, id string, tx pgx.Tx) error {
 	sql := `
-	DELETE FROM products
-	WHERE id=$1`
+	UPDATE products
+	SET deleted_at = $1
+	WHERE id = $2 AND deleted_at IS NULL`
 
-	commandTag, err := tx.Exec(ctx, sql, id)
+	commandTag, err := tx.Exec(ctx, sql, time.Now(), id)
 	if err != nil {
-		return fmt.Errorf("Error deleting product: %w", err)
+		return fmt.Errorf("Error soft deleting product: %w", err)
 	}
 
 	if commandTag.RowsAffected() == 0 {
-		return fmt.Errorf("Product not found with id: %s", id)
+		return &customerrors.ErrProductNotFound
 	}
 	return nil
 	// for i, value := range h.store {
@@ -312,4 +316,60 @@ func (h *ProductsStore) UpdateStockTx(ctx context.Context, productID string, sto
 	}
 
 	return nil
+}
+
+// Restore soft-deleted product
+func (h *ProductsStore) Restore(ctx context.Context, id string) error {
+	sql := `
+	UPDATE products
+	SET deleted_at = NULL
+	WHERE id = $1 AND deleted_at IS NOT NULL`
+
+	commandTag, err := h.dbpool.Exec(ctx, sql, id)
+	if err != nil {
+		return fmt.Errorf("Error restoring product: %w", err)
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return &customerrors.ErrProductNotFound
+	}
+	return nil
+}
+
+// Get all products including soft-deleted ones (for admin)
+func (h *ProductsStore) GetAllIncludingDeleted(ctx context.Context) ([]models.Product, error) {
+	sql := `
+	SELECT id, name, price, description, category, stock_quantity, created_at, updated_at, deleted_at
+	FROM products
+	ORDER BY created_at DESC
+	`
+	rows, err := h.dbpool.Query(ctx, sql)
+	if err != nil {
+		return nil, fmt.Errorf("Error querying products: %w", err)
+	}
+	defer rows.Close()
+
+	var products []models.Product
+	for rows.Next() {
+		var product models.Product
+		err := rows.Scan(
+			&product.ID,
+			&product.Name,
+			&product.Price,
+			&product.Description,
+			&product.Category,
+			&product.StockQuantity,
+			&product.CreatedAt,
+			&product.UpdatedAt,
+			&product.DeletedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("Error scanning products row: %w", err)
+		}
+		products = append(products, product)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("Error iterating product rows: %w", err)
+	}
+	return products, nil
 }

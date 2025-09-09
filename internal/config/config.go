@@ -39,6 +39,7 @@ type GoogleConfig struct {
 	ClientID     string `envconfig:"GOOGLE_CLIENT_ID"`
 	ClientSecret string `envconfig:"GOOGLE_CLIENT_SECRET"`
 	RedirectURL  string `envconfig:"REDIRECT_URL" default:"https://localhost:8080/auth/google/callback"`
+	AdminOrigin  string `envconfig:"ADMIN_ORIGIN" default:"http://localhost:3001"`
 }
 
 type SQSConfig struct {

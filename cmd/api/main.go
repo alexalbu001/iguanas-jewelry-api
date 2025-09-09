@@ -149,16 +149,13 @@ func main() {
 
 	//create repository layer
 	productStore := store.NewProductStore(dbpool)
-
 	userStore := store.NewUsersStore(dbpool)
-
 	cartsStore := store.NewCartsStore(dbpool)
-
 	sessionsStore := auth.NewSessionStore(rdb)
-
 	ordersStore := store.NewOrdersStore(dbpool)
-
 	paymentStore := store.NewPaymentStore(dbpool)
+	productImagesStore := store.NewProductImagesStore(dbpool)
+	userFavoritesStore := store.NewUserFavoritesStore(dbpool)
 
 	//create service layer
 	tx := transaction.NewTxManager(dbpool)
@@ -172,21 +169,24 @@ func main() {
 	ordersService := service.NewOrderService(ordersStore, productStore, cartsStore, tx)
 	paymentService := service.NewPaymentService(paymentStore, ordersStore)
 	jwtService := auth.NewJWTService(cfg.JWTSecret)
+	productImagesSevice := service.NewProductImagesService(productImagesStore, userStore)
+	userFavoritesService := service.NewUserFavoritesService(userFavoritesStore, productStore)
 	//create handlers with store
 
-	productHandlers := handlers.NewProductHandlers(productsService)
+	productHandlers := handlers.NewProductHandlers(productsService, productImagesSevice)
 	userHandlers := handlers.NewUserHandler(userService)
-	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore, conf, adminEmail, jwtService)
+	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore, conf, adminEmail, cfg.Google.AdminOrigin, jwtService)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
 	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient, queueURL, workerMode, scheduler)
 	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService, stripeWebhookSecret)
-
+	productImagesHandlers := handlers.NewProductImagesHandlers(productImagesSevice)
+	userFavoritesHandlers := handlers.NewUserFavoritesHandlers(userFavoritesService)
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 	rateLimitMiddleware := middleware.NewRateLimiter(rdb, "")
 
-	routes.SetupRoutes(r, cfg, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware, rateLimitMiddleware)
+	routes.SetupRoutes(r, cfg, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, productImagesHandlers, userFavoritesHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware, rateLimitMiddleware)
 	if workerMode == "scheduler" {
 		scheduler.Start()
 		logger.Info("Starting scheduler")

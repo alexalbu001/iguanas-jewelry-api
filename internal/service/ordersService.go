@@ -73,34 +73,33 @@ type StatusOrderResult struct {
 }
 
 type OrderSummary struct {
-	ID              string
-	UserID          string
-	OrderItems      []OrderItemSummary
-	Total           float64
-	Status          string
-	ShippingName    string
-	ShippingAddress ShippingAddress
-	// PaymentMethod   string
-	CreatedDate time.Time
+	ID              string             `json:"id"`
+	UserID          string             `json:"user_id"`
+	OrderItems      []OrderItemSummary `json:"items"`
+	Total           float64            `json:"total_amount"`
+	Status          string             `json:"status"`
+	ShippingName    string             `json:"shipping_name"`
+	ShippingAddress ShippingAddress    `json:"shipping_address"`
+	CreatedDate     time.Time          `json:"created_at"`
 }
 type ShippingAddress struct {
-	AddressLine1 string
-	AddressLine2 string
-	City         string
-	State        string
-	PostalCode   string
-	Country      string
-	Email        string
-	Phone        string
+	AddressLine1 string `json:"address_line1"`
+	AddressLine2 string `json:"address_line2"`
+	City         string `json:"city"`
+	State        string `json:"state"`
+	PostalCode   string `json:"postal_code"`
+	Country      string `json:"country"`
+	Email        string `json:"email"`
+	Phone        string `json:"phone"`
 }
 
 type OrderItemSummary struct {
-	ID          string
-	ProductID   string
-	ProductName string
-	Price       float64
-	Quantity    int
-	Subtotal    float64
+	ID          string  `json:"id"`
+	ProductID   string  `json:"product_id"`
+	ProductName string  `json:"product_name"`
+	Price       float64 `json:"price"`
+	Quantity    int     `json:"quantity"`
+	Subtotal    float64 `json:"subtotal"`
 }
 
 // Helper functions - add these to your service
@@ -322,7 +321,12 @@ func (o *OrdersService) GetOrdersHistory(ctx context.Context, userID string) ([]
 	}
 
 	for _, order := range orders { // no db query in loop
-		orderItems := ordersItemsMap[order.ID]
+		orderItems, exists := ordersItemsMap[order.ID]
+		if !exists || len(orderItems) == 0 {
+			// Skip orders with no items - these are orphaned orders
+			continue
+		}
+
 		orderSummary, err := o.buildOrderSummary(order, orderItems, productMap)
 		if err != nil {
 			return nil, fmt.Errorf("Failed to build order summary: %w", err)
@@ -419,6 +423,9 @@ func (o *OrdersService) GetAllOrders(ctx context.Context) ([]OrderSummary, error
 	}
 
 	ordersItemsMap, err := o.orderStore.GetOrderItemsBatch(ctx, orderIDs)
+	if err != nil {
+		return nil, fmt.Errorf("Error retrieving order items: %w", err)
+	}
 
 	var orderSummaries []OrderSummary
 
@@ -437,8 +444,9 @@ func (o *OrdersService) GetAllOrders(ctx context.Context) ([]OrderSummary, error
 
 	for _, order := range orders {
 		orderItems, exists := ordersItemsMap[order.ID]
-		if !exists {
-			return nil, fmt.Errorf("Order item with id %s does not exist", order.ID)
+		if !exists || len(orderItems) == 0 {
+			// Skip orders with no items - these are orphaned orders
+			continue
 		}
 
 		orderSummary, err := o.buildOrderSummary(order, orderItems, productMap)
@@ -480,8 +488,9 @@ func (o *OrdersService) GetOrdersByStatus(ctx context.Context, status string) ([
 
 	for _, order := range orders {
 		orderItems, exists := ordersItemsMap[order.ID]
-		if !exists {
-			return nil, fmt.Errorf("Order item with id %s does not exist", order.ID)
+		if !exists || len(orderItems) == 0 {
+			// Skip orders with no items - these are orphaned orders
+			continue
 		}
 
 		orderSummary, err := o.buildOrderSummary(order, orderItems, productMap)

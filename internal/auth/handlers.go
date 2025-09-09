@@ -14,20 +14,22 @@ import (
 )
 
 type AuthHandlers struct {
-	Store      *store.UsersStore
-	Sessions   *SessionStore
-	Config     *oauth2.Config
-	AdminEmail string
-	JWTService *JWTService
+	Store       *store.UsersStore
+	Sessions    *SessionStore
+	Config      *oauth2.Config
+	AdminEmail  string
+	AdminOrigin string
+	JWTService  *JWTService
 }
 
-func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore, config *oauth2.Config, adminEmail string, jwtService *JWTService) *AuthHandlers {
+func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore, config *oauth2.Config, adminEmail, adminOrigin string, jwtService *JWTService) *AuthHandlers {
 	return &AuthHandlers{
-		Store:      store,
-		Sessions:   sessions,
-		Config:     config,
-		AdminEmail: adminEmail,
-		JWTService: jwtService,
+		Store:       store,
+		Sessions:    sessions,
+		Config:      config,
+		AdminEmail:  adminEmail,
+		AdminOrigin: adminOrigin,
+		JWTService:  jwtService,
 	}
 }
 
@@ -131,7 +133,7 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
                         email: "%s", 
                         role: "%s"
                     }
-                }, "https://localhost:3000");  //
+                }, "%s");  // Use configured origin
                 window.close();
             } else {
                 document.body.innerHTML = "<p>Authentication complete. You can close this window.</p>";
@@ -140,9 +142,18 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
         <p>Authentication successful. This window should close automatically.</p>
     </body>
     </html>
-`, JWTToken, user.ID, user.Email, user.Role)
+`, JWTToken, user.ID, user.Email, user.Role, h.getAdminOrigin())
 
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
+		return
+	}
+
+	// Check if this is an admin login by checking the referer or user agent
+	// For now, we'll redirect to admin panel if the user is an admin
+	if user.Role == "admin" {
+		// Redirect to admin panel with secure token exchange
+		adminURL := h.getAdminOrigin() + "/auth/callback?token=" + JWTToken + "&user=" + user.ID
+		c.Redirect(302, adminURL)
 		return
 	}
 
@@ -154,4 +165,13 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 			"role":  user.Role,
 		},
 	})
+}
+
+// getAdminOrigin returns the configured admin origin for secure postMessage
+func (h *AuthHandlers) getAdminOrigin() string {
+	if h.AdminOrigin != "" {
+		return h.AdminOrigin
+	}
+	// Fallback for development
+	return "http://localhost:3001"
 }

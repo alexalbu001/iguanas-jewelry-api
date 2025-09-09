@@ -5,18 +5,21 @@ import (
 
 	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/responses"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
 type ProductHandlers struct {
-	ProductHandler *service.ProductsService
+	ProductHandler       *service.ProductsService //should be renamed to ProductService
+	ProductImagesService *service.ProductImagesService
 }
 
-func NewProductHandlers(productHandler *service.ProductsService) *ProductHandlers {
+func NewProductHandlers(productHandler *service.ProductsService, productImagesService *service.ProductImagesService) *ProductHandlers {
 	return &ProductHandlers{
-		ProductHandler: productHandler,
+		ProductHandler:       productHandler,
+		ProductImagesService: productImagesService,
 	}
 }
 
@@ -24,7 +27,7 @@ func NewProductHandlers(productHandler *service.ProductsService) *ProductHandler
 // @Description Retrieves a list of all available products
 // @Tags products
 // @Produce json
-// @Success 200 {array} models.Product
+// @Success 200 {array} responses.ProductListResponse
 // @Failure 500 {object} responses.ErrorResponse
 // @Router /api/v1/products [get]
 func (h *ProductHandlers) GetProducts(c *gin.Context) {
@@ -33,7 +36,29 @@ func (h *ProductHandlers) GetProducts(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	c.JSON(http.StatusOK, products)
+	var productIDs []string
+	for _, product := range products {
+		productIDs = append(productIDs, product.ID)
+	}
+	primaryImageMap, err := h.ProductImagesService.GetPrimaryImageForProductsBulk(c.Request.Context(), productIDs)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	var productResponses []responses.ProductListResponse
+	for _, product := range products {
+		response := responses.ProductListResponse{
+			Product: product,
+		}
+
+		if primaryImage, exists := primaryImageMap[product.ID]; exists {
+			response.PrimaryImageURL = &primaryImage.ImageURL
+		}
+
+		productResponses = append(productResponses, response)
+	}
+
+	c.JSON(http.StatusOK, productResponses)
 }
 
 // @Summary Post a Product
@@ -65,7 +90,7 @@ func (h *ProductHandlers) PostProducts(c *gin.Context) {
 // @Tags products
 // @Produce json
 // @Param id path string true "Product ID"
-// @Success 200 {object} models.Product
+// @Success 200 {object} responses.ProductDetailResponse
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
@@ -82,7 +107,18 @@ func (h *ProductHandlers) GetProductByID(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	c.IndentedJSON(http.StatusOK, foundProduct)
+
+	productImages, err := h.ProductImagesService.GetProductImages(c.Request.Context(), foundProduct.ID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	detailedResponse := responses.ProductDetailResponse{
+		Product: foundProduct,
+		Images:  productImages,
+	}
+	c.IndentedJSON(http.StatusOK, detailedResponse)
 }
 
 // @Summary Change a product
