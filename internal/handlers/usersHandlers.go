@@ -152,7 +152,7 @@ func (u *UserHandlers) UpdateUserRole(c *gin.Context) {
 func (u *UserHandlers) GetMyProfile(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -178,7 +178,7 @@ func (u *UserHandlers) GetMyProfile(c *gin.Context) {
 func (u *UserHandlers) DeleteMyAccount(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 

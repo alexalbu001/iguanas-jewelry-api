@@ -60,7 +60,7 @@ func (u *UserFavoritesService) AddUserFavorite(ctx context.Context, userID strin
 	}
 	err = uuid.Validate(productID)
 	if err != nil {
-		return &customerrors.ErrProductNotFound
+		return &customerrors.ErrInvalidUUID
 	}
 
 	_, err = u.ProductsStore.GetByID(ctx, productID)
@@ -80,6 +80,12 @@ func (u *UserFavoritesService) RemoveUserFavorite(ctx context.Context, userID st
 	if err != nil {
 		return &customerrors.ErrProductNotFound
 	}
+
+	_, err = u.ProductsStore.GetByID(ctx, productID)
+	if err != nil {
+		return &customerrors.ErrProductNotFound
+	}
+
 	return u.UserFavoritesStore.RemoveUserFavorite(ctx, userID, productID)
 }
 

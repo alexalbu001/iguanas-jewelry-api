@@ -51,7 +51,7 @@ func (d *CartsHandlers) GetUserCart(c *gin.Context) { //Get cart and items from 
 
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 	logRequest(logger, "get user cart", "user_id", userID)
@@ -86,7 +86,7 @@ func (d *CartsHandlers) AddToCart(c *gin.Context) {
 	}
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -125,7 +125,7 @@ func (d *CartsHandlers) AddToCart(c *gin.Context) {
 func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 	itemID := c.Param("id")
@@ -162,7 +162,7 @@ func (d *CartsHandlers) UpdateCartItem(c *gin.Context) {
 func (d *CartsHandlers) RemoveFromCart(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -191,7 +191,7 @@ func (d *CartsHandlers) RemoveFromCart(c *gin.Context) {
 func (d *CartsHandlers) ClearCart(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 

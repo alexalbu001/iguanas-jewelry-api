@@ -44,7 +44,7 @@ func NewPaymentHandler(paymentService *service.PaymentService, ordersService *se
 func (p *PaymentHandler) RetryOrderPayment(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 	orderID := c.Param("order_id")

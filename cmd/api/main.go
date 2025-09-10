@@ -17,6 +17,7 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/middleware"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/routes"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/storage"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/store"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/telemetry"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/transaction"
@@ -157,6 +158,7 @@ func main() {
 	productImagesStore := store.NewProductImagesStore(dbpool)
 	userFavoritesStore := store.NewUserFavoritesStore(dbpool)
 
+	imageStorage := storage.NewLocalImageStorage("https://localhost:8080")
 	//create service layer
 	tx := transaction.NewTxManager(dbpool)
 
@@ -169,7 +171,7 @@ func main() {
 	ordersService := service.NewOrderService(ordersStore, productStore, cartsStore, tx)
 	paymentService := service.NewPaymentService(paymentStore, ordersStore)
 	jwtService := auth.NewJWTService(cfg.JWTSecret)
-	productImagesSevice := service.NewProductImagesService(productImagesStore, userStore)
+	productImagesSevice := service.NewProductImagesService(productImagesStore, userStore, imageStorage, tx)
 	userFavoritesService := service.NewUserFavoritesService(userFavoritesStore, productStore)
 	//create handlers with store
 
@@ -181,12 +183,15 @@ func main() {
 	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService, stripeWebhookSecret)
 	productImagesHandlers := handlers.NewProductImagesHandlers(productImagesSevice)
 	userFavoritesHandlers := handlers.NewUserFavoritesHandlers(userFavoritesService)
+	imageStorageHandler := handlers.NewImageStorageHandlers(imageStorage)
+
+	// middleware
 	authMiddleware := middleware.NewAuthMiddleware(jwtService)
 	adminMiddleware := middleware.NewAdminMiddleware(sessionsStore, userStore)
 	loggingMiddleware := middleware.NewLoggingMiddleware(logger)
 	rateLimitMiddleware := middleware.NewRateLimiter(rdb, "")
 
-	routes.SetupRoutes(r, cfg, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, productImagesHandlers, userFavoritesHandlers, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware, rateLimitMiddleware)
+	routes.SetupRoutes(r, cfg, productHandlers, userHandlers, cartHandlers, ordersHandlers, paymentHandlers, productImagesHandlers, userFavoritesHandlers, imageStorageHandler, authHandlers, authMiddleware, adminMiddleware, loggingMiddleware, rateLimitMiddleware)
 	if workerMode == "scheduler" {
 		scheduler.Start()
 		logger.Info("Starting scheduler")

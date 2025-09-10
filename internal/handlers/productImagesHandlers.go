@@ -20,6 +20,34 @@ func NewProductImagesHandlers(productImagesService *service.ProductImagesService
 	}
 }
 
+// @Summary Get product images
+// @Description Get all images for a specific product (Admin only)
+// @Tags product-images
+// @Produce json
+// @Param id path string true "Product ID"
+// @Success 200 {array} models.ProductImage
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 403 {object} responses.ErrorResponse
+// @Failure 404 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/admin/products/{id}/images [get]
+func (p *ProductImagesHandlers) GetProductImages(c *gin.Context) {
+	productID := c.Param("id")
+	if err := uuid.Validate(productID); err != nil {
+		c.Error(&customerrors.ErrInvalidUUID)
+		return
+	}
+
+	images, err := p.productImagesService.GetProductImages(c.Request.Context(), productID)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, images)
+}
+
 // @Summary Add product image
 // @Description Add a new image to a product (Admin only)
 // @Tags product-images
@@ -37,7 +65,7 @@ func NewProductImagesHandlers(productImagesService *service.ProductImagesService
 func (p *ProductImagesHandlers) AddProductImage(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -78,7 +106,7 @@ func (p *ProductImagesHandlers) AddProductImage(c *gin.Context) {
 func (p *ProductImagesHandlers) RemoveProductImage(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -119,7 +147,7 @@ func (p *ProductImagesHandlers) RemoveProductImage(c *gin.Context) {
 func (p *ProductImagesHandlers) SetPrimaryImage(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -161,7 +189,7 @@ func (p *ProductImagesHandlers) SetPrimaryImage(c *gin.Context) {
 func (p *ProductImagesHandlers) ReorderImages(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -184,4 +212,113 @@ func (p *ProductImagesHandlers) ReorderImages(c *gin.Context) {
 	}
 
 	c.IndentedJSON(http.StatusOK, gin.H{"message": "Product image order changed successfully", "id": productID})
+}
+
+// @Summary Generate upload URL
+// @Description Generate a presigned URL for direct image upload to storage (Admin only)
+// @Tags product-images
+// @Accept json
+// @Produce json
+// @Param id path string true "Product ID"
+// @Param request body GenerateUploadURLRequest true "Upload request data"
+// @Success 200 {object} GenerateUploadURLResponse
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 403 {object} responses.ErrorResponse
+// @Failure 404 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/admin/products/{id}/images/generate-upload-url [post]
+func (p *ProductImagesHandlers) GenerateUploadURL(c *gin.Context) {
+	productID := c.Param("id")
+	var req struct {
+		Filename    string `json:"filename"`
+		ContentType string `json:"contentType"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(&customerrors.ErrInvalidJSON)
+		return
+	}
+
+	allowedTypes := map[string]bool{
+		"image/jpeg": true,
+		"image/png":  true,
+		"image/webp": true,
+	}
+
+	if !allowedTypes[req.ContentType] {
+		c.Error(&customerrors.ErrInvalidImageContentType)
+		return
+	}
+
+	uploadURL, imageKey, err := p.productImagesService.GenerateUploadURL(c.Request.Context(), productID, req.Filename, req.ContentType)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"uploadUrl": uploadURL,
+		"imageKey":  imageKey,
+	})
+}
+
+// @Summary Confirm image upload
+// @Description Confirm that an image has been uploaded to storage and save metadata to database
+// @Tags product-images
+// @Accept json
+// @Produce json
+// @Param id path string true "Product ID"
+// @Param request body ConfirmUploadRequest true "Upload confirmation data"
+// @Success 200 {object} models.ProductImage
+// @Failure 400 {object} responses.ErrorResponse
+// @Failure 401 {object} responses.ErrorResponse
+// @Failure 403 {object} responses.ErrorResponse
+// @Failure 404 {object} responses.ErrorResponse
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/admin/products/{id}/images/confirm [post]
+func (p *ProductImagesHandlers) ConfirmImageUpload(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.Error(&customerrors.ErrUserUnauthorized)
+		return
+	}
+
+	productID := c.Param("id")
+	if err := uuid.Validate(productID); err != nil {
+		c.Error(&customerrors.ErrInvalidUUID)
+		return
+	}
+
+	var req ConfirmUploadRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.Error(&customerrors.ErrInvalidJSON)
+		return
+	}
+
+	// Validate required fields
+	if req.ImageKey == "" {
+		c.Error(&customerrors.ErrMissingImageURL)
+		return
+	}
+
+	// Call service to confirm upload and save to database
+	productImage, err := p.productImagesService.ConfirmImageUpload(
+		c.Request.Context(),
+		productID,
+		req.ImageKey,
+		req.IsMain,
+		userID.(string),
+	)
+	if err != nil {
+		c.Error(err)
+		return
+	}
+
+	c.JSON(http.StatusOK, productImage)
+}
+
+type ConfirmUploadRequest struct {
+	ImageKey string `json:"imageKey" binding:"required"`
+	IsMain   bool   `json:"isMain"`
 }

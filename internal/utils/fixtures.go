@@ -22,6 +22,10 @@ var KnownOrderID2 = uuid.New().String()
 var SecondOrderID = uuid.New().String()
 var AdminOrderID = uuid.New().String()
 
+// Favorite IDs
+var KnownFavoriteId = uuid.New().String()
+var KnownFavoriteId2 = uuid.New().String()
+
 // Product IDs - keeping them consistent across all fixtures
 const (
 	GoldRingID        = "prod-gold-ring-001"
@@ -222,6 +226,31 @@ func CreateTestCartItems() []models.CartItems {
 			UpdatedAt: baseTime.Add(-30 * time.Minute),
 		},
 		// Total for SecondCartID: $1612.50
+	}
+}
+
+func CreateTestFavorites() []models.UserFavorites {
+	baseTime := time.Now()
+
+	return []models.UserFavorites{
+		{
+			ID:        KnownFavoriteId,
+			UserID:    KnownUserID,
+			ProductID: GoldRingID,
+			CreatedAt: baseTime.Add(-1 * time.Hour),
+		},
+		{
+			ID:        uuid.NewString(),
+			UserID:    KnownUserID,
+			ProductID: SilverBraceletID,
+			CreatedAt: baseTime.Add(-5 * time.Hour),
+		},
+		{
+			ID:        KnownFavoriteId2,
+			UserID:    AdminUserID,
+			ProductID: SapphireRingID,
+			CreatedAt: baseTime.Add(-10 * time.Hour),
+		},
 	}
 }
 

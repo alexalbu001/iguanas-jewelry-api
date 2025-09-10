@@ -1,0 +1,1 @@
+ALTER TABLE product_images ADD COLUMN content_type TEXT NOT NULL;

@@ -52,7 +52,7 @@ func (h *ProductHandlers) GetProducts(c *gin.Context) {
 		}
 
 		if primaryImage, exists := primaryImageMap[product.ID]; exists {
-			response.PrimaryImageURL = &primaryImage.ImageURL
+			response.PrimaryImageURL = primaryImage.ImageURL
 		}
 
 		productResponses = append(productResponses, response)

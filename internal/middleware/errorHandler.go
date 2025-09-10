@@ -15,7 +15,8 @@ func ErrorHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Next()
 
-		if len(c.Errors) > 0 {
+		// Only write error response if no response has been written yet
+		if len(c.Errors) > 0 && !c.Writer.Written() {
 			err := c.Errors.Last().Err
 			var httpErr customerrors.HTTPError
 			if errors.As(err, &httpErr) {

@@ -132,6 +132,15 @@ func (m *MockProductStore) UpdateStockTx(ctx context.Context, productID string, 
 	return fmt.Errorf("Product not found with id %s", productID)
 }
 
+func (m *MockProductStore) GetAllIncludingDeleted(ctx context.Context) ([]models.Product, error) {
+	return m.Store, nil
+}
+
+func (m *MockProductStore) Restore(ctx context.Context, id string) error {
+	// For mock purposes, just return nil as if restore was successful
+	return nil
+}
+
 /////////////////////////////////////
 // Carts
 
@@ -474,4 +483,52 @@ func (m *MockOrderStore) GetOrdersByStatus(ctx context.Context, status string) (
 		}
 	}
 	return returnedOrders, nil
+}
+
+//////////////////////////
+////Favorites
+
+type MockUserFavoritesStore struct {
+	UserFavorites []models.UserFavorites
+}
+
+func (m *MockUserFavoritesStore) GetUserFavorites(ctx context.Context, userID string) ([]models.UserFavorites, error) {
+	var returnedFavorites []models.UserFavorites
+	for _, userFavorite := range m.UserFavorites {
+		if userID == userFavorite.UserID {
+			returnedFavorites = append(returnedFavorites, userFavorite)
+		}
+	}
+
+	return returnedFavorites, nil
+}
+
+func (m *MockUserFavoritesStore) AddUserFavorite(ctx context.Context, userID string, productID string) error {
+	newFavorite := models.UserFavorites{
+		ID:        uuid.NewString(),
+		UserID:    userID,
+		ProductID: productID,
+		CreatedAt: time.Now(),
+	}
+	m.UserFavorites = append(m.UserFavorites, newFavorite)
+	return nil
+}
+
+func (m *MockUserFavoritesStore) RemoveUserFavorite(ctx context.Context, userID string, productID string) error {
+
+	for i, userFavorite := range m.UserFavorites {
+		if userFavorite.UserID == userID && userFavorite.ProductID == productID {
+			m.UserFavorites = append(m.UserFavorites[:i], m.UserFavorites[i+1:]...)
+		}
+	}
+	return nil
+}
+
+func (m *MockUserFavoritesStore) ClearUserFavorites(ctx context.Context, userID string) error {
+	for i, userFavorite := range m.UserFavorites {
+		if userFavorite.UserID == userID {
+			m.UserFavorites = append(m.UserFavorites[:i], m.UserFavorites[i+1:]...)
+		}
+	}
+	return nil
 }

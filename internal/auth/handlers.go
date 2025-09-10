@@ -1,8 +1,11 @@
 package auth
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
@@ -12,6 +15,13 @@ import (
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
+
+// generateCSRFToken generates a cryptographically secure CSRF token
+func generateCSRFToken() string {
+	bytes := make([]byte, 32)
+	rand.Read(bytes)
+	return base64.URLEncoding.EncodeToString(bytes)
+}
 
 type AuthHandlers struct {
 	Store       *store.UsersStore
@@ -35,9 +45,14 @@ func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore, config *oa
 
 func (h *AuthHandlers) GoogleLogin(c *gin.Context) {
 	state := uuid.New().String()
-	// Preserve popup parameter in state for callback
+	// Preserve popup parameter and origin in state for callback
 	if c.Query("popup") == "true" {
-		state += "|popup=true"
+		origin := c.Query("origin")
+		if origin == "" {
+			// Default to admin origin if no origin specified
+			origin = h.getAdminOrigin()
+		}
+		state += "|popup=true|origin=" + origin
 	}
 	c.SetCookie("state", state, 3600, "/", "localhost", false, true)
 	redirect := h.Config.AuthCodeURL(state)
@@ -114,35 +129,86 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 	JWTToken, err := h.JWTService.GenerateToken(user.ID, user.Role)
 	if err != nil {
 		c.Error(err)
+		return
 	}
+
+	// Generate CSRF token for additional security
+	csrfToken := generateCSRFToken()
+
+	// Set production-ready httpOnly cookies with security flags
+	domain, secure := h.getCookieSettings()
+
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "jwt_token",
+		Value:    JWTToken,
+		MaxAge:   86400,
+		Path:     "/",
+		Domain:   "localhost",
+		Secure:   true, // Required for SameSite=None
+		HttpOnly: true,
+		SameSite: http.SameSiteNoneMode, // Allows cross-site requests
+	})
+	// Set httpOnly cookies with proper security attributes
+	// c.SetCookie("jwt_token", JWTToken, 86400, "/", domain, secure, true)
+
+	// CSRF token - not httpOnly so frontend can read it for API requests
+	c.SetCookie("csrf_token", csrfToken, 86400, "/", domain, secure, false)
 	isPopup := strings.Contains(stateCookie, "popup=true")
+	log.Printf("Setting cookies with domain='%s', secure=%t", domain, secure)
+	log.Printf("AdminOrigin: %s", h.AdminOrigin)
+
+	// Extract origin from state if it's a popup request
+	var targetOrigin string
+	if isPopup {
+		// Parse origin from state cookie
+		parts := strings.Split(stateCookie, "|")
+		for _, part := range parts {
+			if strings.HasPrefix(part, "origin=") {
+				targetOrigin = strings.TrimPrefix(part, "origin=")
+				break
+			}
+		}
+		// Fallback to admin origin if not found
+		if targetOrigin == "" {
+			targetOrigin = h.getAdminOrigin()
+		}
+	}
 
 	if isPopup {
-		// Return HTML for popup
+		// Return minimal HTML for popup - just close immediately
 		html := fmt.Sprintf(`
     <!DOCTYPE html>
     <html>
     <head><title>Authentication Successful</title></head>
     <body>
         <script>
-            if (window.opener) {
-                window.opener.postMessage({
-                    token: "%s",
-                    user: {
-                        id: "%s",
-                        email: "%s", 
-                        role: "%s"
-                    }
-                }, "%s");  // Use configured origin
-                window.close();
+            // Send message to parent window and close immediately
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener.postMessage({
+                        success: true,
+                        user: {
+                            id: "%s",
+                            email: "%s", 
+                            role: "%s"
+                        },
+                        csrfToken: "%s"
+                    }, "%s");
+                    
+                    // Close immediately
+                    window.close();
+                } catch (error) {
+                    console.error('Failed to send message to parent:', error);
+                    // If we can't close, show minimal message
+                    document.body.innerHTML = '<p>Authentication complete. You can close this window.</p>';
+                }
             } else {
-                document.body.innerHTML = "<p>Authentication complete. You can close this window.</p>";
+                document.body.innerHTML = '<p>Authentication complete. You can close this window.</p>';
             }
         </script>
-        <p>Authentication successful. This window should close automatically.</p>
     </body>
     </html>
-`, JWTToken, user.ID, user.Email, user.Role, h.getAdminOrigin())
+`, user.ID, user.Email, user.Role, csrfToken, targetOrigin)
 
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(html))
 		return
@@ -165,6 +231,64 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 			"role":  user.Role,
 		},
 	})
+}
+
+// Logout handles user logout by clearing all httpOnly cookies
+func (h *AuthHandlers) Logout(c *gin.Context) {
+	// Clear all authentication cookies with same domain/path as set
+	domain, secure := h.getCookieSettings()
+
+	// Clear all authentication cookies with same security attributes
+	c.SetCookie("jwt_token", "", -1, "/", domain, secure, true)
+	c.SetCookie("user_id", "", -1, "/", domain, secure, true)
+	c.SetCookie("user_email", "", -1, "/", domain, secure, true)
+	c.SetCookie("user_role", "", -1, "/", domain, secure, true)
+	c.SetCookie("csrf_token", "", -1, "/", domain, secure, false)
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Logged out successfully",
+	})
+}
+
+// setSecureCookie sets a cookie with all security attributes including SameSite
+func (h *AuthHandlers) setSecureCookie(c *gin.Context, name, value string, maxAge int, path, domain string, secure, httpOnly bool, sameSite string) {
+	// Use Go's built-in SetCookie method first
+	c.SetCookie(name, value, maxAge, path, domain, secure, httpOnly)
+
+	// Then modify the Set-Cookie header to add SameSite attribute
+	existingCookie := c.Writer.Header().Get("Set-Cookie")
+	if existingCookie != "" {
+		// Add SameSite to the existing cookie
+		modifiedCookie := existingCookie + "; SameSite=" + sameSite
+		c.Writer.Header().Set("Set-Cookie", modifiedCookie)
+	}
+}
+
+// getCookieSettings returns the appropriate cookie domain and secure settings
+// For localhost development, we need to set cookies that work for both frontend and admin
+func (h *AuthHandlers) getCookieSettings() (domain string, secure bool) {
+	// For localhost development, always use empty domain to allow cross-port access
+	// and determine secure based on whether we're using HTTPS
+	if strings.Contains(h.AdminOrigin, "localhost") {
+		// Localhost development - use secure cookies if HTTPS, non-secure if HTTP
+		secure = strings.HasPrefix(h.AdminOrigin, "https://")
+		domain = "localhost" // Empty domain allows cross-port access on localhost
+	} else {
+		// Production environment - use secure cookies and proper domain
+		secure = true
+		// Extract domain from admin origin for production
+		if h.AdminOrigin != "" {
+			adminURL := strings.TrimPrefix(h.AdminOrigin, "https://")
+			adminURL = strings.TrimPrefix(adminURL, "http://")
+			if strings.Contains(adminURL, ".") {
+				parts := strings.Split(adminURL, ".")
+				if len(parts) >= 2 {
+					domain = strings.Join(parts[1:], ".") // example.com
+				}
+			}
+		}
+	}
+	return domain, secure
 }
 
 // getAdminOrigin returns the configured admin origin for secure postMessage

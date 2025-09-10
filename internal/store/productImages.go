@@ -23,7 +23,7 @@ func NewProductImagesStore(dbpool *pgxpool.Pool) *ProductImagesStore {
 
 func (p *ProductImagesStore) GetByProductID(ctx context.Context, productID string) ([]models.ProductImage, error) {
 	sql := `
-	SELECT id, product_id, image_url, is_main, display_order, created_at, updated_at
+	SELECT id, product_id, image_key, content_type, is_main, display_order, created_at, updated_at
 	FROM product_images
 	WHERE product_id=$1
 	`
@@ -38,7 +38,8 @@ func (p *ProductImagesStore) GetByProductID(ctx context.Context, productID strin
 		err := rows.Scan(
 			&productImage.ID,
 			&productImage.ProductID,
-			&productImage.ImageURL,
+			&productImage.ImageKey,
+			&productImage.ContentType,
 			&productImage.IsMain,
 			&productImage.DisplayOrder,
 			&productImage.CreatedAt,
@@ -61,11 +62,11 @@ func (p *ProductImagesStore) InsertProductImage(ctx context.Context, productImag
 	productImage.UpdatedAt = time.Now()
 
 	sql := `
-	INSERT INTO product_images (id, product_id, image_url, is_main, display_order, created_at, updated_at)
-	VALUES ($1, $2, $3, $4, $5, $6, $7)
+	INSERT INTO product_images (id, product_id, image_key, content_type, is_main, display_order, created_at, updated_at)
+	VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 
-	_, err := p.dbpool.Exec(ctx, sql, productImage.ID, productImage.ProductID, productImage.ImageURL, productImage.IsMain, productImage.DisplayOrder, productImage.CreatedAt, productImage.UpdatedAt)
+	_, err := p.dbpool.Exec(ctx, sql, productImage.ID, productImage.ProductID, productImage.ImageKey, productImage.ContentType, productImage.IsMain, productImage.DisplayOrder, productImage.CreatedAt, productImage.UpdatedAt)
 	if err != nil {
 		return models.ProductImage{}, fmt.Errorf("Product image could not be created: %w", err)
 	}
@@ -85,7 +86,7 @@ func (p *ProductImagesStore) InsertProductImageBulk(ctx context.Context, product
 
 func (p *ProductImagesStore) GetPrimaryImageForProduct(ctx context.Context, productID string) (models.ProductImage, error) {
 	sql := `
-	SELECT id, product_id, image_url, is_main, display_order, created_at, updated_at
+	SELECT id, product_id, image_key, content_type, is_main, display_order, created_at, updated_at
 	FROM product_images
 	WHERE product_id=$1 AND is_main=true
 	`
@@ -94,7 +95,8 @@ func (p *ProductImagesStore) GetPrimaryImageForProduct(ctx context.Context, prod
 	err := row.Scan(
 		&productImage.ID,
 		&productImage.ProductID,
-		&productImage.ImageURL,
+		&productImage.ImageKey,
+		&productImage.ContentType,
 		&productImage.IsMain,
 		&productImage.DisplayOrder,
 		&productImage.CreatedAt,
@@ -111,7 +113,7 @@ func (p *ProductImagesStore) GetPrimaryImageForProduct(ctx context.Context, prod
 
 func (p *ProductImagesStore) GetPrimaryImageForProductBulk(ctx context.Context, productIDs []string) (map[string]models.ProductImage, error) {
 	sql := `
-	SELECT id, product_id, image_url, is_main, display_order, created_at, updated_at
+	SELECT id, product_id, image_key, content_type, is_main, display_order, created_at, updated_at
 	FROM product_images
 	WHERE product_id=ANY($1) AND is_main=true
 	`
@@ -127,7 +129,8 @@ func (p *ProductImagesStore) GetPrimaryImageForProductBulk(ctx context.Context, 
 		err := rows.Scan(
 			&productImage.ID,
 			&productImage.ProductID,
-			&productImage.ImageURL,
+			&productImage.ImageKey,
+			&productImage.ContentType,
 			&productImage.IsMain,
 			&productImage.DisplayOrder,
 			&productImage.CreatedAt,
@@ -148,10 +151,10 @@ func (p *ProductImagesStore) UpdateProductImage(ctx context.Context, productImag
 	productImage.UpdatedAt = time.Now()
 	sql := `
 	UPDATE product_images
-	SET image_url=$1, is_main=$2, display_order=$3, updated_at=$4
+	SET image_key=$1, is_main=$2, display_order=$3, updated_at=$4
 	WHERE id=$5
 	`
-	_, err := p.dbpool.Exec(ctx, sql, productImage.ImageURL, productImage.IsMain, productImage.DisplayOrder, productImage.UpdatedAt, productImage.ID)
+	_, err := p.dbpool.Exec(ctx, sql, productImage.ImageKey, productImage.IsMain, productImage.DisplayOrder, productImage.UpdatedAt, productImage.ID)
 	if err != nil {
 		return fmt.Errorf("Error updating product image: %w", err)
 	}
@@ -172,7 +175,7 @@ func (p *ProductImagesStore) DeleteProductImage(ctx context.Context, imageID, pr
 
 func (p *ProductImagesStore) GetProductImagesBulk(ctx context.Context, productIDs []string) (map[string][]models.ProductImage, error) {
 	sql := `
-	SELECT id, product_id, image_url, is_main, display_order, created_at, updated_at
+	SELECT id, product_id, image_key, content_type, is_main, display_order, created_at, updated_at
 	FROM product_images
 	WHERE product_id=ANY($1)
 	`
@@ -187,7 +190,8 @@ func (p *ProductImagesStore) GetProductImagesBulk(ctx context.Context, productID
 		err := rows.Scan(
 			&productImage.ID,
 			&productImage.ProductID,
-			&productImage.ImageURL,
+			&productImage.ImageKey,
+			&productImage.ContentType,
 			&productImage.IsMain,
 			&productImage.DisplayOrder,
 			&productImage.CreatedAt,
@@ -289,5 +293,8 @@ func (s *ProductImagesStore) UpdateImageOrder(ctx context.Context, imageOrder []
 	query += "END WHERE id IN (" + strings.Join(placeholders, ",") + ")"
 
 	_, err := s.dbpool.Exec(ctx, query, args...)
-	return fmt.Errorf("Failed to reorder images: %w", err)
+	if err != nil {
+		return fmt.Errorf("Failed to reorder images: %w", err)
+	}
+	return nil
 }

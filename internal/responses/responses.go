@@ -86,5 +86,5 @@ type ProductDetailResponse struct {
 
 type ProductListResponse struct {
 	models.Product
-	PrimaryImageURL *string `json:"primary_image_url,omitempty"`
+	PrimaryImageURL string `json:"primary_image_url,omitempty"`
 }

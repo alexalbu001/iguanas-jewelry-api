@@ -31,7 +31,7 @@ func NewUserFavoritesHandlers(userFavoritesService *service.UserFavoritesService
 func (u *UserFavoritesHandlers) GetUserFavorites(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 	products, err := u.UserFavoritesService.GetUserFavorites(c.Request.Context(), userID.(string))
@@ -56,7 +56,7 @@ func (u *UserFavoritesHandlers) GetUserFavorites(c *gin.Context) {
 func (u *UserFavoritesHandlers) AddUserFavorite(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 	productID := c.Param("id")
@@ -86,7 +86,7 @@ func (u *UserFavoritesHandlers) AddUserFavorite(c *gin.Context) {
 func (u *UserFavoritesHandlers) RemoveUserFavorite(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 	productID := c.Param("id")
@@ -113,7 +113,7 @@ func (u *UserFavoritesHandlers) RemoveUserFavorite(c *gin.Context) {
 func (u *UserFavoritesHandlers) ClearUserFavorites(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 	err := u.UserFavoritesService.ClearUserFavorites(c.Request.Context(), userID.(string))

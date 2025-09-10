@@ -60,6 +60,8 @@ definitions:
         type: string
       created_at:
         type: string
+      deleted_at:
+        type: string
       description:
         maxLength: 500
         type: string
@@ -79,6 +81,23 @@ definitions:
     - category
     - name
     - price
+    type: object
+  models.ProductImage:
+    properties:
+      created_at:
+        type: string
+      display_order:
+        type: integer
+      id:
+        type: string
+      image_url:
+        type: string
+      is_main:
+        type: boolean
+      product_id:
+        type: string
+      updated_at:
+        type: string
     type: object
   models.User:
     properties:
@@ -109,51 +128,119 @@ definitions:
         example: Product not found
         type: string
     type: object
+  responses.ProductDetailResponse:
+    properties:
+      category:
+        enum:
+        - rings
+        - earrings
+        - bracelets
+        - necklaces
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      id:
+        type: string
+      images:
+        items:
+          $ref: '#/definitions/models.ProductImage'
+        type: array
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      price:
+        type: number
+      stock_quantity:
+        type: integer
+      updated_at:
+        type: string
+    required:
+    - category
+    - name
+    - price
+    type: object
+  responses.ProductListResponse:
+    properties:
+      category:
+        enum:
+        - rings
+        - earrings
+        - bracelets
+        - necklaces
+        type: string
+      created_at:
+        type: string
+      deleted_at:
+        type: string
+      description:
+        maxLength: 500
+        type: string
+      id:
+        type: string
+      name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      price:
+        type: number
+      primary_image_url:
+        type: string
+      stock_quantity:
+        type: integer
+      updated_at:
+        type: string
+    required:
+    - category
+    - name
+    - price
+    type: object
   service.OrderItemSummary:
     properties:
       id:
         type: string
       price:
-        format: float64
         type: number
-      productID:
+      product_id:
         type: string
-      productName:
+      product_name:
         type: string
       quantity:
         type: integer
       subtotal:
-        format: float64
         type: number
     type: object
   service.OrderSummary:
     properties:
-      createdDate:
-        description: PaymentMethod   string
+      created_at:
         type: string
       id:
         type: string
-      orderItems:
+      items:
         items:
           $ref: '#/definitions/service.OrderItemSummary'
         type: array
-      shippingAddress:
+      shipping_address:
         $ref: '#/definitions/service.ShippingAddress'
-      shippingName:
+      shipping_name:
         type: string
       status:
         type: string
-      total:
-        format: float64
+      total_amount:
         type: number
-      userID:
+      user_id:
         type: string
     type: object
   service.ShippingAddress:
     properties:
-      addressLine1:
+      address_line1:
         type: string
-      addressLine2:
+      address_line2:
         type: string
       city:
         type: string
@@ -163,7 +250,7 @@ definitions:
         type: string
       phone:
         type: string
-      postalCode:
+      postal_code:
         type: string
       state:
         type: string
@@ -358,6 +445,192 @@ paths:
       summary: Change a product
       tags:
       - products
+  /api/v1/admin/products/{id}/images:
+    post:
+      consumes:
+      - application/json
+      description: Add a new image to a product (Admin only)
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Product image information
+        in: body
+        name: image
+        required: true
+        schema:
+          $ref: '#/definitions/models.ProductImage'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ProductImage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Add product image
+      tags:
+      - product-images
+  /api/v1/admin/products/{id}/images/{imageID}:
+    delete:
+      description: Remove an image from a product (Admin only)
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Image ID
+        in: path
+        name: imageID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Remove product image
+      tags:
+      - product-images
+    put:
+      description: Set an image as the primary image for a product (Admin only)
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Image ID
+        in: path
+        name: imageID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Set primary image
+      tags:
+      - product-images
+  /api/v1/admin/products/{id}/images/reorder:
+    put:
+      consumes:
+      - application/json
+      description: Change the order of images for a product (Admin only)
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Array of image IDs in desired order
+        in: body
+        name: imageOrder
+        required: true
+        schema:
+          items:
+            type: string
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Reorder product images
+      tags:
+      - product-images
   /api/v1/admin/users:
     get:
       description: Fetches all users
@@ -906,7 +1179,7 @@ paths:
           description: OK
           schema:
             items:
-              $ref: '#/definitions/models.Product'
+              $ref: '#/definitions/responses.ProductListResponse'
             type: array
         "500":
           description: Internal Server Error
@@ -930,7 +1203,7 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/models.Product'
+            $ref: '#/definitions/responses.ProductDetailResponse'
         "400":
           description: Bad Request
           schema:
@@ -946,6 +1219,123 @@ paths:
       summary: Show a product
       tags:
       - products
+  /api/v1/user-favorites:
+    delete:
+      description: Remove all products from the current user's favorites
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Clear user favorites
+      tags:
+      - user-favorites
+    get:
+      description: Retrieves the current user's favorites
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.Product'
+            type: array
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Get user favorites
+      tags:
+      - user-favorites
+  /api/v1/user-favorites/{id}:
+    delete:
+      description: Remove a product from the current user's favorites
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Remove user favorite
+      tags:
+      - user-favorites
+    post:
+      description: Add a product to the current user's favorites
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Add user favorite
+      tags:
+      - user-favorites
   /api/v1/user/account:
     delete:
       description: Allows authenticated users to delete their own account

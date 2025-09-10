@@ -120,7 +120,7 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 	}
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -217,7 +217,7 @@ func (oh *OrdersHandlers) CreateSQSInputMessage(orderID string) (*sqs.SendMessag
 func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -246,7 +246,7 @@ func (oh *OrdersHandlers) ViewOrderHistory(c *gin.Context) {
 func (oh *OrdersHandlers) CancelOrder(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 
@@ -279,7 +279,7 @@ func (oh *OrdersHandlers) CancelOrder(c *gin.Context) {
 func (oh *OrdersHandlers) GetOrderInfo(c *gin.Context) {
 	userID, exists := c.Get("userID")
 	if !exists {
-		c.Error(&customerrors.ErrUserNotFound)
+		c.Error(&customerrors.ErrUserUnauthorized)
 		return
 	}
 

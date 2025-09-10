@@ -19,7 +19,7 @@ type Config struct {
 	Env        string `envconfig:"ENV" default:"dev"`
 	Version    string `envconfig:"VERSION" default:"test-123"`
 	JWTSecret  string `envconfig:"JWT_SECRET" required:"true"`
-	WorkerMode string `envconfig:"WORKER_MODE" default:scheduler`
+	WorkerMode string `envconfig:"WORKER_MODE" default:"scheduler"`
 }
 
 type DatabaseConfig struct {
@@ -53,7 +53,7 @@ type LoggingConfig struct {
 }
 
 type CORSConfig struct {
-	AllowOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"https://localhost:3000"`
+	AllowOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"https://localhost:3000,http://localhost:3001"`
 }
 
 func Load() (*Config, error) {

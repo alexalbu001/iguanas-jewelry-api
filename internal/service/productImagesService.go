@@ -6,6 +6,7 @@ import (
 
 	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/storage"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/transaction"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -31,12 +32,15 @@ type ProductImagesService struct {
 	ProductImagesStore ProductImagesStore
 	UsersStore         UsersStore
 	TxManager          transaction.TxManager
+	ImageStorage       storage.ImageStorage
 }
 
-func NewProductImagesService(productImagesStore ProductImagesStore, usersStore UsersStore) *ProductImagesService {
+func NewProductImagesService(productImagesStore ProductImagesStore, usersStore UsersStore, imageStorage storage.ImageStorage, txManager transaction.TxManager) *ProductImagesService {
 	return &ProductImagesService{
 		ProductImagesStore: productImagesStore,
 		UsersStore:         usersStore,
+		ImageStorage:       imageStorage,
+		TxManager:          txManager,
 	}
 }
 
@@ -48,6 +52,10 @@ func (p *ProductImagesService) GetProductImages(ctx context.Context, productID s
 	productImages, err := p.ProductImagesStore.GetByProductID(ctx, productID)
 	if err != nil {
 		return nil, fmt.Errorf("Error fetching product images: %w", err)
+	}
+
+	for i := range productImages {
+		productImages[i].ImageURL = p.ImageStorage.GetImageURL(ctx, productImages[i].ImageKey)
 	}
 	return productImages, nil
 }
@@ -63,6 +71,11 @@ func (p *ProductImagesService) GetProductImagesBulk(ctx context.Context, product
 	if err != nil {
 		return nil, fmt.Errorf("Error fetching product images: %w", err)
 	}
+	for _, productImages := range productImagesMap {
+		for i := range productImages {
+			productImages[i].ImageURL = p.ImageStorage.GetImageURL(ctx, productImages[i].ImageKey)
+		}
+	}
 	return productImagesMap, nil
 }
 
@@ -75,6 +88,7 @@ func (p *ProductImagesService) GetPrimaryImageForProduct(ctx context.Context, pr
 	if err != nil {
 		return models.ProductImage{}, fmt.Errorf("Error fetching primary product image: %w", err)
 	}
+	productImage.ImageURL = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
 	return productImage, nil
 }
 
@@ -91,7 +105,7 @@ func (p *ProductImagesService) InsertProductImage(ctx context.Context, productIm
 	if err != nil {
 		return models.ProductImage{}, &customerrors.ErrInvalidProductID
 	}
-	if productImage.ImageURL == "" {
+	if productImage.ImageKey == "" {
 		return models.ProductImage{}, &customerrors.ErrMissingImageURL
 	}
 	err = p.CheckIfUserIsAdmin(ctx, userID)
@@ -113,6 +127,7 @@ func (p *ProductImagesService) InsertProductImage(ctx context.Context, productIm
 		if err != nil {
 			return models.ProductImage{}, fmt.Errorf("Error inserting product image: %w", err)
 		}
+		productImage.ImageURL = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
 		return productImage, nil
 	} else {
 		productImage.IsMain = true
@@ -120,6 +135,7 @@ func (p *ProductImagesService) InsertProductImage(ctx context.Context, productIm
 		if err != nil {
 			return models.ProductImage{}, fmt.Errorf("Error inserting product image: %w", err)
 		}
+		productImage.ImageURL = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
 		return productImage, nil
 	}
 }
@@ -129,7 +145,7 @@ func (p *ProductImagesService) InsertProductImageBulk(ctx context.Context, produ
 		if productImage.ProductID == "" {
 			return &customerrors.ErrEmptyProductID
 		}
-		if productImage.ImageURL == "" {
+		if productImage.ImageKey == "" {
 			return &customerrors.ErrMissingImageURL
 		}
 		err := uuid.Validate(productImage.ProductID)
@@ -157,7 +173,7 @@ func (p *ProductImagesService) UpdateProductImage(ctx context.Context, productIm
 	if err != nil {
 		return &customerrors.ErrInvalidProductID
 	}
-	if productImage.ImageURL == "" {
+	if productImage.ImageKey == "" {
 		return &customerrors.ErrMissingImageURL
 	}
 	err = p.CheckIfUserIsAdmin(ctx, userID)
@@ -210,6 +226,10 @@ func (p *ProductImagesService) GetPrimaryImageForProductsBulk(ctx context.Contex
 	productImagesMap, err := p.ProductImagesStore.GetPrimaryImageForProductBulk(ctx, productIDs)
 	if err != nil {
 		return nil, fmt.Errorf("Error fetching primary product images: %w", err)
+	}
+	for productID, productImage := range productImagesMap {
+		productImage.ImageURL = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+		productImagesMap[productID] = productImage
 	}
 	return productImagesMap, nil
 }
@@ -295,4 +315,58 @@ func (p *ProductImagesService) ReorderImages(ctx context.Context, productID stri
 	}
 
 	return nil
+}
+
+func (p *ProductImagesService) GenerateUploadURL(ctx context.Context, productID, filename, contentType string) (string, string, error) {
+	// Generate image key
+	imageKey := fmt.Sprintf("products/%s/%s", productID, filename)
+
+	// Generate upload URL
+	uploadURL, err := p.ImageStorage.GenerateUploadURL(ctx, imageKey, contentType)
+	if err != nil {
+		return "", "", err
+	}
+
+	return uploadURL, imageKey, nil
+}
+
+func (p *ProductImagesService) ConfirmImageUpload(
+	ctx context.Context,
+	productID, imageKey string,
+	isMain bool,
+	userID string,
+) (models.ProductImage, error) {
+	// Validate inputs
+	if err := uuid.Validate(productID); err != nil {
+		return models.ProductImage{}, &customerrors.ErrInvalidProductID
+	}
+
+	if imageKey == "" {
+		return models.ProductImage{}, &customerrors.ErrMissingImageURL
+	}
+
+	// Check if user is admin
+	if err := p.CheckIfUserIsAdmin(ctx, userID); err != nil {
+		return models.ProductImage{}, err
+	}
+
+	// Create ProductImage record
+	productImage := models.ProductImage{
+		ID:        uuid.New().String(),
+		ProductID: productID,
+		ImageKey:  imageKey,
+		IsMain:    isMain,
+		// DisplayOrder will be set by the store layer
+	}
+
+	// Save to database
+	savedImage, err := p.ProductImagesStore.InsertProductImage(ctx, productImage)
+	if err != nil {
+		return models.ProductImage{}, fmt.Errorf("Error saving image metadata: %w", err)
+	}
+
+	// Generate the ImageURL for the response
+	savedImage.ImageURL = p.ImageStorage.GetImageURL(ctx, savedImage.ImageKey)
+
+	return savedImage, nil
 }

@@ -12,11 +12,11 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gin-gonic/gin/otelgin"
 )
 
-func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, productImagesHandlers *handlers.ProductImagesHandlers, userFavoritesHandlers *handlers.UserFavoritesHandlers, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware, rateLimitMiddleware gin.HandlerFunc) {
+func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.ProductHandlers, userHandlers *handlers.UserHandlers, cartsHandlers *handlers.CartsHandlers, ordersHandlers *handlers.OrdersHandlers, paymentHandlers *handlers.PaymentHandler, productImagesHandlers *handlers.ProductImagesHandlers, userFavoritesHandlers *handlers.UserFavoritesHandlers, imageStorageHandler *handlers.ImageStorageHandlers, authHandlers *auth.AuthHandlers, authMiddleware *middleware.AuthMiddleware, adminMiddleware *middleware.AdminMiddleware, loggingMiddleware *middleware.LoggingMiddleware, rateLimitMiddleware gin.HandlerFunc) {
 	r.Use(cors.New(cors.Config{ // CORS
 		AllowOrigins:     cfg.CORS.AllowOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
-		AllowHeaders:     []string{"Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Content-Type", "Authorization", "X-CSRF-Token"},
 		AllowCredentials: true, //Cookies
 	}))
 	r.Use(middleware.LimitRequestSize(1 << 20)) // 1MB requests size
@@ -41,15 +41,18 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 	r.Use(loggingMiddleware.RequestLogging()) //Use middleware abroad whole gin engine
 	r.Use(otelgin.Middleware("iguanas-jewelry"))
 	r.Use(middleware.ErrorHandler()) // Add error handler middleware
+	r.Use(middleware.ValidateCSRF())
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
+	r.GET("/images/*filepath", imageStorageHandler.ServeImage)
 	// Auth routes (no /api/v1 prefix for OAuth)
 	auth := r.Group("/auth")
 	auth.Use(rateLimitMiddleware)
 	{
 		auth.GET("/google", authHandlers.GoogleLogin)
 		auth.GET("/google/callback", authHandlers.GoogleCallback)
+		auth.POST("/logout", authHandlers.Logout)
 	}
 	r.POST("/webhooks/stripe", paymentHandlers.HandleWebhook)
 	// API v1 routes
@@ -122,10 +125,18 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 			products.POST("", productHandlers.PostProducts)
 			products.PUT("/:id", productHandlers.UpdateProductByID)
 			products.DELETE("/:id", productHandlers.DeleteProductByID)
+			products.GET("/:id/images", productImagesHandlers.GetProductImages)
 			products.POST("/:id/images", productImagesHandlers.AddProductImage)
 			products.DELETE("/:id/images/:imageID", productImagesHandlers.RemoveProductImage)
 			products.PUT("/:id/images/:imageID", productImagesHandlers.SetPrimaryImage)
 			products.PUT("/:id/images/reorder", productImagesHandlers.ReorderImages)
+			products.POST("/:id/images/generate-upload-url", productImagesHandlers.GenerateUploadURL)
+			products.POST("/:id/images/confirm", productImagesHandlers.ConfirmImageUpload)
+		}
+
+		// Image upload (local development only)
+		if cfg.Env == "dev" {
+			admin.PUT("/uploads/*filepath", imageStorageHandler.HandleLocalUpload)
 		}
 
 		// User management
