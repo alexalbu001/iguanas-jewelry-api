@@ -22,6 +22,7 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/telemetry"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/transaction"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/exaring/otelpgx"
 	"github.com/gin-gonic/gin"
@@ -147,6 +148,8 @@ func main() {
 
 	// Create SQS client
 	sqsClient := sqs.NewFromConfig(sdkConfig)
+	s3Client := s3.NewFromConfig(sdkConfig)
+	presigner := s3.NewPresignClient(s3Client)
 
 	//create repository layer
 	productStore := store.NewProductStore(dbpool)
@@ -158,7 +161,12 @@ func main() {
 	productImagesStore := store.NewProductImagesStore(dbpool)
 	userFavoritesStore := store.NewUserFavoritesStore(dbpool)
 
-	imageStorage := storage.NewLocalImageStorage("https://localhost:8080")
+	var imageStorage storage.ImageStorage
+	if cfg.ImageStorage.Mode == "s3" {
+		imageStorage = storage.NewS3Storage(s3Client, cfg.ImageStorage.Bucket, cfg.ImageStorage.Region, cfg.ImageStorage.BaseURL, presigner)
+	} else {
+		imageStorage = storage.NewLocalImageStorage("https://localhost:8080")
+	}
 	//create service layer
 	tx := transaction.NewTxManager(dbpool)
 

@@ -26,9 +26,9 @@ func (l *LocalImageStorage) GenerateUploadURL(ctx context.Context, key string, c
 	return fmt.Sprintf("%s/api/v1/admin/uploads/%s", l.baseURL, key), nil
 }
 
-func (l *LocalImageStorage) GetImageURL(ctx context.Context, key string) string { // key = filepath
+func (l *LocalImageStorage) GetImageURL(ctx context.Context, key string) (string, error) { // key = filepath
 	// Return URL pointing to server's serve endpoint
-	return fmt.Sprintf("%s/images/%s", l.baseURL, key)
+	return fmt.Sprintf("%s/images/%s", l.baseURL, key), nil
 }
 
 func (l *LocalImageStorage) Delete(ctx context.Context, key string) error {

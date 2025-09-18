@@ -214,15 +214,6 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 		return
 	}
 
-	// Check if this is an admin login by checking the referer or user agent
-	// For now, we'll redirect to admin panel if the user is an admin
-	if user.Role == "admin" {
-		// Redirect to admin panel with secure token exchange
-		adminURL := h.getAdminOrigin() + "/auth/callback?token=" + JWTToken + "&user=" + user.ID
-		c.Redirect(302, adminURL)
-		return
-	}
-
 	c.JSON(http.StatusOK, gin.H{
 		"token": JWTToken,
 		"user": gin.H{

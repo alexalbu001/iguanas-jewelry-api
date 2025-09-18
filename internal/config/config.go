@@ -7,19 +7,27 @@ import (
 )
 
 type Config struct {
-	Database   DatabaseConfig
-	Redis      RedisConfig
-	Stripe     StripeConfig
-	Google     GoogleConfig
-	SQS        SQSConfig
-	Logging    LoggingConfig
-	CORS       CORSConfig
-	AppPort    int    `envconfig:"PORT" default:"8080"`
-	AdminEmail string `envconfig:"ADMIN_EMAIL" default:"alexalbu001@gmail.com"`
-	Env        string `envconfig:"ENV" default:"dev"`
-	Version    string `envconfig:"VERSION" default:"test-123"`
-	JWTSecret  string `envconfig:"JWT_SECRET" required:"true"`
-	WorkerMode string `envconfig:"WORKER_MODE" default:"scheduler"`
+	Database     DatabaseConfig
+	ImageStorage ImageStorage
+	Redis        RedisConfig
+	Stripe       StripeConfig
+	Google       GoogleConfig
+	SQS          SQSConfig
+	Logging      LoggingConfig
+	CORS         CORSConfig
+	AppPort      int    `envconfig:"PORT" default:"8080"`
+	AdminEmail   string `envconfig:"ADMIN_EMAIL" default:"alexalbu001@gmail.com"`
+	Env          string `envconfig:"ENV" default:"dev"`
+	Version      string `envconfig:"VERSION" default:"test-123"`
+	JWTSecret    string `envconfig:"JWT_SECRET" required:"true"`
+	WorkerMode   string `envconfig:"WORKER_MODE" default:"scheduler"`
+}
+
+type ImageStorage struct {
+	Mode    string `envconfig:"IMAGE_STORAGE_MODE" default:"local"`
+	BaseURL string `envconfig:"IMAGE_STORAGE_BASE_URL"`
+	Bucket  string `envconfig:"IMAGE_STORAGE_BUCKET"`
+	Region  string `envconfig:"IMAGE_STORAGE_REGION"`
 }
 
 type DatabaseConfig struct {

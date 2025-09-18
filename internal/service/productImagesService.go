@@ -55,7 +55,10 @@ func (p *ProductImagesService) GetProductImages(ctx context.Context, productID s
 	}
 
 	for i := range productImages {
-		productImages[i].ImageURL = p.ImageStorage.GetImageURL(ctx, productImages[i].ImageKey)
+		productImages[i].ImageURL, err = p.ImageStorage.GetImageURL(ctx, productImages[i].ImageKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return productImages, nil
 }
@@ -73,7 +76,10 @@ func (p *ProductImagesService) GetProductImagesBulk(ctx context.Context, product
 	}
 	for _, productImages := range productImagesMap {
 		for i := range productImages {
-			productImages[i].ImageURL = p.ImageStorage.GetImageURL(ctx, productImages[i].ImageKey)
+			productImages[i].ImageURL, err = p.ImageStorage.GetImageURL(ctx, productImages[i].ImageKey)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 	return productImagesMap, nil
@@ -88,7 +94,10 @@ func (p *ProductImagesService) GetPrimaryImageForProduct(ctx context.Context, pr
 	if err != nil {
 		return models.ProductImage{}, fmt.Errorf("Error fetching primary product image: %w", err)
 	}
-	productImage.ImageURL = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+	productImage.ImageURL, err = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+	if err != nil {
+		return models.ProductImage{}, err
+	}
 	return productImage, nil
 }
 
@@ -127,7 +136,10 @@ func (p *ProductImagesService) InsertProductImage(ctx context.Context, productIm
 		if err != nil {
 			return models.ProductImage{}, fmt.Errorf("Error inserting product image: %w", err)
 		}
-		productImage.ImageURL = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+		productImage.ImageURL, err = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+		if err != nil {
+			return models.ProductImage{}, err
+		}
 		return productImage, nil
 	} else {
 		productImage.IsMain = true
@@ -135,7 +147,10 @@ func (p *ProductImagesService) InsertProductImage(ctx context.Context, productIm
 		if err != nil {
 			return models.ProductImage{}, fmt.Errorf("Error inserting product image: %w", err)
 		}
-		productImage.ImageURL = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+		productImage.ImageURL, err = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+		if err != nil {
+			return models.ProductImage{}, err
+		}
 		return productImage, nil
 	}
 }
@@ -228,7 +243,10 @@ func (p *ProductImagesService) GetPrimaryImageForProductsBulk(ctx context.Contex
 		return nil, fmt.Errorf("Error fetching primary product images: %w", err)
 	}
 	for productID, productImage := range productImagesMap {
-		productImage.ImageURL = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+		productImage.ImageURL, err = p.ImageStorage.GetImageURL(ctx, productImage.ImageKey)
+		if err != nil {
+			return nil, err
+		}
 		productImagesMap[productID] = productImage
 	}
 	return productImagesMap, nil
@@ -366,7 +384,10 @@ func (p *ProductImagesService) ConfirmImageUpload(
 	}
 
 	// Generate the ImageURL for the response
-	savedImage.ImageURL = p.ImageStorage.GetImageURL(ctx, savedImage.ImageKey)
+	savedImage.ImageURL, err = p.ImageStorage.GetImageURL(ctx, savedImage.ImageKey)
+	if err != nil {
+		return models.ProductImage{}, err
+	}
 
 	return savedImage, nil
 }

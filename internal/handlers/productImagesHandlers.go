@@ -220,8 +220,8 @@ func (p *ProductImagesHandlers) ReorderImages(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Param id path string true "Product ID"
-// @Param request body GenerateUploadURLRequest true "Upload request data"
-// @Success 200 {object} GenerateUploadURLResponse
+// @Param request body object true "Upload request data" example({"filename":"image.jpg","contentType":"image/jpeg"})
+// @Success 200 {object} map[string]interface{} "Upload URL and image key"
 // @Failure 400 {object} responses.ErrorResponse
 // @Failure 401 {object} responses.ErrorResponse
 // @Failure 403 {object} responses.ErrorResponse

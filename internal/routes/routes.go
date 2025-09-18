@@ -131,6 +131,7 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 			products.PUT("/:id/images/:imageID", productImagesHandlers.SetPrimaryImage)
 			products.PUT("/:id/images/reorder", productImagesHandlers.ReorderImages)
 			products.POST("/:id/images/generate-upload-url", productImagesHandlers.GenerateUploadURL)
+			products.GET("/:id/images/generate-upload-url", imageStorageHandler.GetUploadURL)
 			products.POST("/:id/images/confirm", productImagesHandlers.ConfirmImageUpload)
 		}
 

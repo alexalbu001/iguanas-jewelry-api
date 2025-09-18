@@ -294,6 +294,66 @@ const docTemplate = `{
             }
         },
         "/api/v1/admin/products/{id}/images": {
+            "get": {
+                "description": "Get all images for a specific product (Admin only)",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "product-images"
+                ],
+                "summary": "Get product images",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/models.ProductImage"
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            },
             "post": {
                 "description": "Add a new image to a product (Admin only)",
                 "consumes": [
@@ -329,6 +389,149 @@ const docTemplate = `{
                         "description": "Created",
                         "schema": {
                             "$ref": "#/definitions/models.ProductImage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/products/{id}/images/confirm": {
+            "post": {
+                "description": "Confirm that an image has been uploaded to storage and save metadata to database",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "product-images"
+                ],
+                "summary": "Confirm image upload",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Upload confirmation data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/handlers.ConfirmUploadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/models.ProductImage"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/products/{id}/images/generate-upload-url": {
+            "post": {
+                "description": "Generate a presigned URL for direct image upload to storage (Admin only)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "product-images"
+                ],
+                "summary": "Generate upload URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Product ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Upload request data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Upload URL and image key",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -558,6 +761,63 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/uploads/{filepath}": {
+            "put": {
+                "description": "Upload an image file to local storage (Admin only, Local Development only)",
+                "consumes": [
+                    "image/*"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "images"
+                ],
+                "summary": "Upload image (Local Development)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image file path",
+                        "name": "filepath",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -1055,6 +1315,64 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/images/upload-url": {
+            "get": {
+                "description": "Generate a presigned URL for uploading images to storage",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "images"
+                ],
+                "summary": "Generate upload URL",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Content type of the image (e.g., image/jpeg, image/png)",
+                        "name": "content_type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Product ID for organizing images",
+                        "name": "product_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "default": "main",
+                        "description": "Image type (main, thumbnail, gallery)",
+                        "name": "type",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Upload URL and metadata",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request - missing required parameters",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "$ref": "#/definitions/responses.ErrorResponse"
                         }
@@ -1742,6 +2060,47 @@ const docTemplate = `{
                 }
             }
         },
+        "/images/{filepath}": {
+            "get": {
+                "description": "Serve an image file from storage",
+                "produces": [
+                    "image/*"
+                ],
+                "tags": [
+                    "images"
+                ],
+                "summary": "Serve image",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Image file path",
+                        "name": "filepath",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Image file",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "$ref": "#/definitions/responses.ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/webhooks/stripe": {
             "post": {
                 "description": "Processes Stripe webhook events for payment status updates",
@@ -1848,6 +2207,20 @@ const docTemplate = `{
                 }
             }
         },
+        "handlers.ConfirmUploadRequest": {
+            "type": "object",
+            "required": [
+                "imageKey"
+            ],
+            "properties": {
+                "imageKey": {
+                    "type": "string"
+                },
+                "isMain": {
+                    "type": "boolean"
+                }
+            }
+        },
         "handlers.QuantityRequest": {
             "type": "object",
             "properties": {
@@ -1906,6 +2279,9 @@ const docTemplate = `{
         "models.ProductImage": {
             "type": "object",
             "properties": {
+                "content_type": {
+                    "type": "string"
+                },
                 "created_at": {
                     "type": "string"
                 },
@@ -1916,6 +2292,7 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "image_url": {
+                    "description": "Generated dynamically, NOT stored in DB",
                     "type": "string"
                 },
                 "is_main": {

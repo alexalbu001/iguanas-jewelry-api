@@ -43,6 +43,15 @@ definitions:
     - product_id
     - quantity
     type: object
+  handlers.ConfirmUploadRequest:
+    properties:
+      imageKey:
+        type: string
+      isMain:
+        type: boolean
+    required:
+    - imageKey
+    type: object
   handlers.QuantityRequest:
     properties:
       quantity:
@@ -84,6 +93,8 @@ definitions:
     type: object
   models.ProductImage:
     properties:
+      content_type:
+        type: string
       created_at:
         type: string
       display_order:
@@ -91,6 +102,7 @@ definitions:
       id:
         type: string
       image_url:
+        description: Generated dynamically, NOT stored in DB
         type: string
       is_main:
         type: boolean
@@ -446,6 +458,46 @@ paths:
       tags:
       - products
   /api/v1/admin/products/{id}/images:
+    get:
+      description: Get all images for a specific product (Admin only)
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.ProductImage'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Get product images
+      tags:
+      - product-images
     post:
       consumes:
       - application/json
@@ -581,6 +633,103 @@ paths:
       summary: Set primary image
       tags:
       - product-images
+  /api/v1/admin/products/{id}/images/confirm:
+    post:
+      consumes:
+      - application/json
+      description: Confirm that an image has been uploaded to storage and save metadata
+        to database
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Upload confirmation data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handlers.ConfirmUploadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.ProductImage'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Confirm image upload
+      tags:
+      - product-images
+  /api/v1/admin/products/{id}/images/generate-upload-url:
+    post:
+      consumes:
+      - application/json
+      description: Generate a presigned URL for direct image upload to storage (Admin
+        only)
+      parameters:
+      - description: Product ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Upload request data
+        in: body
+        name: request
+        required: true
+        schema:
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Upload URL and image key
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Generate upload URL
+      tags:
+      - product-images
   /api/v1/admin/products/{id}/images/reorder:
     put:
       consumes:
@@ -631,6 +780,45 @@ paths:
       summary: Reorder product images
       tags:
       - product-images
+  /api/v1/admin/uploads/{filepath}:
+    put:
+      consumes:
+      - image/*
+      description: Upload an image file to local storage (Admin only, Local Development
+        only)
+      parameters:
+      - description: Image file path
+        in: path
+        name: filepath
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Upload image (Local Development)
+      tags:
+      - images
   /api/v1/admin/users:
     get:
       description: Fetches all users
@@ -952,6 +1140,45 @@ paths:
       summary: Update cart item quantity
       tags:
       - carts
+  /api/v1/images/upload-url:
+    get:
+      consumes:
+      - application/json
+      description: Generate a presigned URL for uploading images to storage
+      parameters:
+      - description: Content type of the image (e.g., image/jpeg, image/png)
+        in: query
+        name: content_type
+        required: true
+        type: string
+      - description: Product ID for organizing images
+        in: query
+        name: product_id
+        type: string
+      - default: main
+        description: Image type (main, thumbnail, gallery)
+        in: query
+        name: type
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Upload URL and metadata
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Bad request - missing required parameters
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Generate upload URL
+      tags:
+      - images
   /api/v1/orders:
     get:
       description: Retrieves the order history for the authenticated user
@@ -1391,6 +1618,33 @@ paths:
       summary: Get my profile
       tags:
       - users
+  /images/{filepath}:
+    get:
+      description: Serve an image file from storage
+      parameters:
+      - description: Image file path
+        in: path
+        name: filepath
+        required: true
+        type: string
+      produces:
+      - image/*
+      responses:
+        "200":
+          description: Image file
+          schema:
+            type: file
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/responses.ErrorResponse'
+      summary: Serve image
+      tags:
+      - images
   /webhooks/stripe:
     post:
       consumes:
