@@ -1,0 +1,109 @@
+name: Main
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_REPOSITORY: iguanas-jewelry-api
+  ECS_SERVICE: iguanas-jewelry-api
+  ECS_CLUSTER: iguanas-jewelry-api
+  ECS_TASK_DEFINITION: iguanas-jewelry-api
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    env:
+      ENV: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.0
+
+      - name: Install dependencies
+        run: go mod download && go mod verify
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: false
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
+        with:
+          mask-password: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          cache-from: |
+            type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:cache_prod_default
+          cache-to: |
+            type=registry,ref=${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:cache_prod_default,mode=max,image-manifest=true,oci-mediatypes=true
+          context: .
+          target: production
+          push: true
+          tags: |
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+            ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
+          platforms: linux/amd64
+
+      - name: Install Jsonnet
+        run: |
+          wget https://github.com/google/go-jsonnet/releases/download/v0.20.0/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+          tar -xzf go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+          sudo mv jsonnet /usr/local/bin/
+          jsonnet --version
+
+      - name: Render task definition
+        run: |
+          jsonnet task-definition.jsonnet \
+            --ext-str env=${{ env.ENV }} \
+            --ext-str version=${{ github.sha }} \
+            --ext-str aws_account_id=264669033021 \
+            --ext-str service=${{ env.ECS_TASK_DEFINITION }} \
+            --ext-str region=${{ env.AWS_REGION }} \
+            > task-definition.json
+          
+          echo "Generated task definition:"
+          cat task-definition.json
+
+      - name: Register task definition
+        run: |
+          TASK_DEFINITION=$(aws ecs register-task-definition \
+            --cli-input-json file://task-definition.json \
+            --region ${{ env.AWS_REGION }} )
+          
+          TASK_DEFINITION_ARN=$(echo $TASK_DEFINITION | jq -r '.taskDefinition.taskDefinitionArn')
+
+
+      - name: Update ECS service
+        run: |
+          # Update the ECS service
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service ${{ env.ECS_SERVICE }} \
+            --task-definition $TASK_DEFINITION_ARN \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Wait for deployment to complete
+        run: |
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }}

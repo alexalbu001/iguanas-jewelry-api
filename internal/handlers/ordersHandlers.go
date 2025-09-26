@@ -146,7 +146,7 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 	logRequest(logger, "create order", "user_id", userID)
 	orderSummary, err := oh.ordersService.CreateOrderFromCart(c.Request.Context(), userID.(string), shippingInfo)
 	if err != nil {
-		logError(logger, "failed to create order", err, "user_id", userID, "order_id", orderSummary.ID)
+		LogError(logger, "failed to create order", err, "user_id", userID, "order_id", orderSummary.ID)
 		c.Error(err)
 		return
 	}
@@ -156,7 +156,7 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 	logRequest(logger, "create payment intent", "user_id", userID)
 	clientSecret, err := oh.paymentService.CreatePaymentIntent(c.Request.Context(), orderSummary.ID, idempotencyKey)
 	if err != nil {
-		logError(logger, "failed to create payment intent", err, "user_id", userID, "order_id", orderSummary.ID)
+		LogError(logger, "failed to create payment intent", err, "user_id", userID, "order_id", orderSummary.ID)
 		c.Error(err)
 		return
 	}
@@ -167,7 +167,7 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 			gocron.NewTask(oh.ExpireOrders, context.Background(), orderSummary.ID),
 		)
 		if err != nil {
-			logError(logger, "failed to schedule job", err, "user_id", userID, "order_id", orderSummary.ID)
+			LogError(logger, "failed to schedule order expiry job", err, "user_id", userID, "order_id", orderSummary.ID)
 		}
 	} else {
 		input, err := oh.CreateSQSInputMessage(orderSummary.ID)
@@ -178,7 +178,7 @@ func (oh *OrdersHandlers) CreateOrder(c *gin.Context) {
 		_, err = oh.sqsClient.SendMessage(c.Request.Context(), input)
 		if err != nil {
 			// Log but don't fail the order (best effort approach)
-			logError(logger, "failed to send message to sqs", err, "order_id", orderSummary.ID)
+			LogError(logger, "failed to send message to sqs", err, "order_id", orderSummary.ID)
 		}
 	}
 

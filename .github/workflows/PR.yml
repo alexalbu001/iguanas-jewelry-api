@@ -1,0 +1,45 @@
+name: PR
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.24.0
+      - name: Install dependencies
+        run: go mod download && go mod verify
+      - name: Run tests
+        run: go test ./...
+        
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          aws-region: eu-west-1
+          mask-aws-account-id: false
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@062b18b96a7aff071d4dc91bc00c4c1a7945b076 # v2
+        with:
+            mask-password: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        
+      - name: Build deployable image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          cache-from: |
+            type=registry,ref=${{ steps.login-ecr.outputs.registry }}/iguanas-jewelry-api:cache_prod_default
+            type=registry,ref=${{ steps.login-ecr.outputs.registry }}/iguanas-jewelry-api:cache_prod_${{ github.event.pull_request.head.sha }}
+          cache-to: |
+            type=registry,ref=${{ steps.login-ecr.outputs.registry }}/iguanas-jewelry-api:cache_prod_${{ github.event.pull_request.head.sha }},mode=max,image-manifest=true,oci-mediatypes=true
+          context: .
+          push: true
+          tags: ${{ steps.login-ecr.outputs.registry }}/iguanas-jewelry-api:${{github.event.pull_request.head.sha}}

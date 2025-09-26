@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -9,9 +10,12 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/handlers"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/store"
 	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
 	"golang.org/x/oauth2"
 )
@@ -24,22 +28,26 @@ func generateCSRFToken() string {
 }
 
 type AuthHandlers struct {
-	Store       *store.UsersStore
-	Sessions    *SessionStore
-	Config      *oauth2.Config
-	AdminEmail  string
-	AdminOrigin string
-	JWTService  *JWTService
+	Store        *store.UsersStore
+	Sessions     *SessionStore
+	Config       *oauth2.Config
+	AdminEmail   string
+	AdminOrigin  string
+	JWTService   *JWTService
+	EmailService service.EmailService
+	scheduler    gocron.Scheduler
 }
 
-func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore, config *oauth2.Config, adminEmail, adminOrigin string, jwtService *JWTService) *AuthHandlers {
+func NewAuthHandlers(store *store.UsersStore, sessions *SessionStore, config *oauth2.Config, adminEmail, adminOrigin string, jwtService *JWTService, EmailService service.EmailService, scheduler gocron.Scheduler) *AuthHandlers {
 	return &AuthHandlers{
-		Store:       store,
-		Sessions:    sessions,
-		Config:      config,
-		AdminEmail:  adminEmail,
-		AdminOrigin: adminOrigin,
-		JWTService:  jwtService,
+		Store:        store,
+		Sessions:     sessions,
+		Config:       config,
+		AdminEmail:   adminEmail,
+		AdminOrigin:  adminOrigin,
+		JWTService:   jwtService,
+		EmailService: EmailService,
+		scheduler:    scheduler,
 	}
 }
 
@@ -60,6 +68,11 @@ func (h *AuthHandlers) GoogleLogin(c *gin.Context) {
 }
 
 func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
+	logger, err := handlers.GetComponentLogger(c, "authentication")
+	if err != nil {
+		c.Error(err)
+		return
+	}
 	stateGoogle := c.Query("state") // Gets from URL params
 	stateCookie, err := c.Cookie("state")
 	if err != nil {
@@ -107,6 +120,13 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Could not create user"})
 			return
+		}
+		_, err = h.scheduler.NewJob(
+			gocron.OneTimeJob(gocron.OneTimeJobStartImmediately()),
+			gocron.NewTask(h.EmailService.SendWelcome, context.Background(), user.Name, user.Email),
+		)
+		if err != nil {
+			handlers.LogError(logger, "failed to schedule email job", err, "user_id", user.ID, "user_email", user.Email)
 		}
 	}
 	if user.Email == h.AdminEmail && user.Role != "admin" {

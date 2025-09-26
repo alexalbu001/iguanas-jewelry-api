@@ -57,7 +57,7 @@ func (d *CartsHandlers) GetUserCart(c *gin.Context) { //Get cart and items from 
 	logRequest(logger, "get user cart", "user_id", userID)
 	cartSummary, err := d.CartsService.GetUserCart(c.Request.Context(), userID.(string))
 	if err != nil {
-		logError(logger, "failed to get user cart", err, "user_id", userID)
+		LogError(logger, "failed to get user cart", err, "user_id", userID)
 		c.Error(err)
 		return
 	}
@@ -99,7 +99,7 @@ func (d *CartsHandlers) AddToCart(c *gin.Context) {
 	logRequest(logger, "add to cart", "user_id", userID)
 	cartSummary, err := d.CartsService.AddToCart(c.Request.Context(), userID.(string), addToCartRequest.ProductID, addToCartRequest.Quantity)
 	if err != nil {
-		logError(logger, "failed to add to cart", err, "user_id", userID)
+		LogError(logger, "failed to add to cart", err, "user_id", userID)
 		c.Error(err)
 		return
 	}

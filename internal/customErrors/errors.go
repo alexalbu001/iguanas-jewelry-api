@@ -70,6 +70,7 @@ var (
 	ErrEmptyImageURL             = APIError{"Image URL cannot be empty", "EMPTY_IMAGE_URL", http.StatusBadRequest}
 	ErrEmptyImageOrder           = APIError{"Image order cannot be empty", "EMPTY_IMAGE_ORDER", http.StatusBadRequest}
 	ErrInvalidImageContentType   = APIError{"Invalid image content type", "INVALID_IMAGE_CONTENT_TYPE", http.StatusBadRequest}
+
 	// Generic validation
 	ErrInvalidInput   = APIError{"Invalid input data", "INVALID_INPUT", http.StatusBadRequest}
 	ErrInternalServer = APIError{"Internal Server Error", "INTERNAL_SERVER_ERROR", http.StatusInternalServerError}

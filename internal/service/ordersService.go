@@ -676,3 +676,7 @@ func (o *OrdersService) CancelOrderAndRestoreStock(ctx context.Context, orderID 
 
 	return nil
 }
+
+// func (o *OrdersService) ScheduleOrderConfirmationEmail(ctx context.Context, orderSummary OrderSummary)error{
+
+// }

@@ -20,6 +20,6 @@ func logRequest(logger *slog.Logger, operation string, fields ...interface{}) {
 	logger.Info(operation, fields...)
 }
 
-func logError(logger *slog.Logger, operation string, err error, fields ...interface{}) {
+func LogError(logger *slog.Logger, operation string, err error, fields ...interface{}) {
 	logger.Error(operation, "error", err)
 }

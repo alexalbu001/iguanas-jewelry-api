@@ -29,6 +29,7 @@ import (
 	"github.com/go-co-op/gocron/v2"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/redis/go-redis/v9"
+	"github.com/sendgrid/sendgrid-go"
 	"github.com/stripe/stripe-go/v82"
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
@@ -146,6 +147,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	sendgridClient := sendgrid.NewSendClient(cfg.Sendgrid.SendgridApiKey)
+
 	// Create SQS client
 	sqsClient := sqs.NewFromConfig(sdkConfig)
 	s3Client := s3.NewFromConfig(sdkConfig)
@@ -181,14 +184,15 @@ func main() {
 	jwtService := auth.NewJWTService(cfg.JWTSecret)
 	productImagesSevice := service.NewProductImagesService(productImagesStore, userStore, imageStorage, tx)
 	userFavoritesService := service.NewUserFavoritesService(userFavoritesStore, productStore)
+	emailService := service.NewSendgridEmailService(sendgridClient, cfg.Sendgrid.FromEmail, cfg.Sendgrid.FromName)
 	//create handlers with store
 
 	productHandlers := handlers.NewProductHandlers(productsService, productImagesSevice)
 	userHandlers := handlers.NewUserHandler(userService)
-	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore, conf, adminEmail, cfg.Google.AdminOrigin, jwtService)
+	authHandlers := auth.NewAuthHandlers(userStore, sessionsStore, conf, adminEmail, cfg.Google.AdminOrigin, jwtService, emailService, scheduler)
 	cartHandlers := handlers.NewCartsHandler(cartsService, productsService)
 	ordersHandlers := handlers.NewOrdersHandlers(ordersService, paymentService, sqsClient, queueURL, workerMode, scheduler)
-	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService, stripeWebhookSecret)
+	paymentHandlers := handlers.NewPaymentHandler(paymentService, ordersService, emailService, stripeWebhookSecret, scheduler)
 	productImagesHandlers := handlers.NewProductImagesHandlers(productImagesSevice)
 	userFavoritesHandlers := handlers.NewUserFavoritesHandlers(userFavoritesService)
 	imageStorageHandler := handlers.NewImageStorageHandlers(imageStorage)

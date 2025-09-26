@@ -15,6 +15,7 @@ type Config struct {
 	SQS          SQSConfig
 	Logging      LoggingConfig
 	CORS         CORSConfig
+	Sendgrid     SendgridConfig
 	AppPort      int    `envconfig:"PORT" default:"8080"`
 	AdminEmail   string `envconfig:"ADMIN_EMAIL" default:"alexalbu001@gmail.com"`
 	Env          string `envconfig:"ENV" default:"dev"`
@@ -62,6 +63,12 @@ type LoggingConfig struct {
 
 type CORSConfig struct {
 	AllowOrigins []string `envconfig:"CORS_ALLOWED_ORIGINS" default:"https://localhost:3000,http://localhost:3001"`
+}
+
+type SendgridConfig struct {
+	SendgridApiKey string `envconfig:"SENDGRID_API_KEY"`
+	FromEmail      string `envconfig:"FROM_EMAIL"`
+	FromName       string `envconfig:"FROM_NAME"`
 }
 
 func Load() (*Config, error) {

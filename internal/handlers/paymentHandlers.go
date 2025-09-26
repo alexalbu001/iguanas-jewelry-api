@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron/v2"
 	"github.com/google/uuid"
 	"github.com/stripe/stripe-go/v82"
 	"github.com/stripe/stripe-go/v82/webhook"
@@ -18,14 +20,18 @@ import (
 type PaymentHandler struct {
 	paymentService      *service.PaymentService
 	ordersService       *service.OrdersService
+	emailService        service.EmailService
 	stripeWebhookSecret string
+	scheduler           gocron.Scheduler
 }
 
-func NewPaymentHandler(paymentService *service.PaymentService, ordersService *service.OrdersService, stripeWebhookSecret string) *PaymentHandler {
+func NewPaymentHandler(paymentService *service.PaymentService, ordersService *service.OrdersService, emailService service.EmailService, stripeWebhookSecret string, scheduler gocron.Scheduler) *PaymentHandler {
 	return &PaymentHandler{
 		paymentService:      paymentService,
 		ordersService:       ordersService,
+		emailService:        emailService,
 		stripeWebhookSecret: stripeWebhookSecret,
+		scheduler:           scheduler,
 	}
 }
 
@@ -126,7 +132,7 @@ func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 		logRequest(logger, "create payment", "order_id", orderID)
 		_, err = p.paymentService.CreatePayment(c.Request.Context(), payment)
 		if err != nil {
-			logError(logger, "failed to create payment", err, "order_id", orderSummary.ID)
+			LogError(logger, "failed to create payment", err, "order_id", orderSummary.ID)
 			c.Error(err)
 			return
 		}
@@ -137,10 +143,25 @@ func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 			return
 		}
 
+		_, err = p.scheduler.NewJob(
+			gocron.OneTimeJob(gocron.OneTimeJobStartImmediately()),
+			gocron.NewTask(p.emailService.SendOrderConfirmation, context.Background(), orderSummary),
+			gocron.WithEventListeners(
+				gocron.AfterJobRunsWithError(func(jobID uuid.UUID, jobName string, err error) {
+					LogError(logger, "email job failed", err, "user_id", orderSummary.UserID, "order_id", orderSummary.ID)
+				}),
+			),
+		)
+		logRequest(logger, "schedule email job", "order_id", orderID)
+
+		if err != nil {
+			LogError(logger, "failed to schedule email job", err, "user_id", orderSummary.UserID, "order_id", orderSummary.ID)
+		}
+
 		// Clear the user's cart after successful payment
 		err = p.ordersService.ClearCartAfterPayment(c.Request.Context(), orderSummary.UserID)
 		if err != nil {
-			logError(logger, "failed to clear cart after payment", err, "order_id", orderID, "user_id", orderSummary.UserID)
+			LogError(logger, "failed to clear cart after payment", err, "order_id", orderID, "user_id", orderSummary.UserID)
 			// Don't return error here - payment was successful, cart clearing is secondary
 		}
 
@@ -182,7 +203,7 @@ func (p *PaymentHandler) HandleWebhook(c *gin.Context) {
 		logRequest(logger, "create failed payment", "order_id", orderID)
 		_, err = p.paymentService.CreatePayment(c.Request.Context(), payment)
 		if err != nil {
-			logError(logger, "create failed payment", err, "order_id", orderID)
+			LogError(logger, "create failed payment", err, "order_id", orderID)
 			c.Error(err)
 			return
 		}
