@@ -92,6 +92,23 @@ jobs:
           TASK_DEFINITION_ARN=$(echo $TASK_DEFINITION | jq -r '.taskDefinition.taskDefinitionArn')
 
 
+      - name: Install migrate tool
+        run: |
+          wget https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz
+          tar -xzf migrate.linux-amd64.tar.gz
+          sudo mv migrate /usr/local/bin/
+          migrate -version
+
+      - name: Run database migrations
+        run: |
+          # Get the database URL from AWS SSM Parameter Store
+          DATABASE_URL=$(aws ssm get-parameter --name "/secrets/iguanas-jewelry/DATABASE_URL" --with-decryption --query "Parameter.Value" --output text --region ${{ env.AWS_REGION }})
+          
+          # Run migrations
+          migrate -database "$DATABASE_URL" -path migrations up
+          
+          echo "Database migrations completed successfully"
+
       - name: Update ECS service
         run: |
           # Update the ECS service

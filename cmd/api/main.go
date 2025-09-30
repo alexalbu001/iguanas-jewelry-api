@@ -72,21 +72,21 @@ func main() {
 
 	if err := cfg.Validate(); err != nil {
 		logger.Error("Configuration validation failed", "error", err)
-		fmt.Errorf("Server forced to shutdown", "error", err)
+		// fmt.Errorf("Server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
 
 	telemtry, err := telemetry.InitTelemetry(ctx, "iguanas-jewelry", cfg.Version, cfg.Env)
 	if err != nil {
 		logger.Error("Failed to init telemetry:", "error", err)
-		fmt.Errorf("Server forced to shutdown", "error", err)
+		// fmt.Errorf("Server forced to shutdown", "error", err)
 		os.Exit(1)
 	}
 	defer telemtry.Shutdown(ctx)
 
 	pgxConfig, err := pgxpool.ParseConfig(cfg.Database.DatabaseURL)
 	if err != nil {
-		fmt.Errorf("Server forced to shutdown", "error", err)
+		// fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Unable to parse database URL", "error", err)
 		os.Exit(1)
 	}
@@ -95,13 +95,13 @@ func main() {
 
 	dbpool, err := pgxpool.NewWithConfig(context.Background(), pgxConfig)
 	if err != nil {
-		fmt.Errorf("Server forced to shutdown", "error", err)
+		// fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Unable to connect to db", "error", err)
 		os.Exit(1)
 	}
 
 	if err := dbpool.Ping(ctx); err != nil {
-		fmt.Errorf("Server forced to shutdown", "error", err)
+		// fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Unable to ping database:", "error", err)
 		os.Exit(1)
 	}
@@ -111,7 +111,7 @@ func main() {
 
 	opt, err := redis.ParseURL(cfg.Redis.RedisURL)
 	if err != nil {
-		fmt.Errorf("Server forced to shutdown", "error", err)
+		// fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Unable to connect to redis", "error", err)
 		os.Exit(1)
 	}
@@ -122,7 +122,7 @@ func main() {
 
 	sdkConfig, err := awsconfig.LoadDefaultConfig(ctx)
 	if err != nil {
-		fmt.Errorf("Server forced to shutdown", "error", err)
+		// fmt.Errorf("Server forced to shutdown", "error", err)
 		logger.Error("Couldn't load AWS configuration:", "error", err)
 		os.Exit(1)
 	}
@@ -313,6 +313,13 @@ func healthCheck(dbpool *pgxpool.Pool, redis *redis.Client) gin.HandlerFunc { //
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"status": "unhealthy",
 				"error":  "database"})
+			return
+		}
+		if err := redis.Ping(context.Background()).Err(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"status": "unhealthy",
+				"error":  "redis",
+			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{

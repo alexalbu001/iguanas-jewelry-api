@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	customerrors "github.com/alexalbu001/iguanas-jewelry-api/internal/customErrors"
+	"github.com/alexalbu001/iguanas-jewelry-api/internal/models"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/service"
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/utils"
 	"github.com/google/uuid"
@@ -56,13 +57,35 @@ func TestRemoveUserFavorite(t *testing.T) {
 		t.Fatalf("Expected error response %v, got %v", &customerrors.ErrProductNotFound, err)
 	}
 
-	ring, err := userFavorites.ProductsStore.GetByID(ctx, utils.GoldRingID)
+	// Create a test product with UUID ID for this test
+	testProductID := uuid.New().String()
+	testProduct := models.Product{
+		ID:            testProductID,
+		Name:          "Test Product",
+		Price:         100.00,
+		Description:   "Test product for favorites",
+		Category:      "rings",
+		StockQuantity: 1,
+	}
+
+	// Add the test product to the mock store
+	if mockStore, ok := userFavorites.ProductsStore.(*utils.MockProductStore); ok {
+		mockStore.Store = append(mockStore.Store, testProduct)
+	}
+
+	// First add the favorite
+	err = userFavorites.AddUserFavorite(ctx, utils.KnownUserID, testProductID)
+	if err != nil {
+		t.Fatalf("Failed to add user favorite: %v", err)
+	}
+
+	ring, err := userFavorites.ProductsStore.GetByID(ctx, testProductID)
 	if err != nil {
 		t.Fatalf("Failed to fetch product: %v", err)
 	}
-	fmt.Printf("Ring id %s, goldProductId : %s", ring.ID, utils.GoldRingID)
+	fmt.Printf("Ring id %s, testProductId : %s", ring.ID, testProductID)
 
-	err = userFavorites.RemoveUserFavorite(ctx, utils.KnownUserID, utils.GoldRingID)
+	err = userFavorites.RemoveUserFavorite(ctx, utils.KnownUserID, testProductID)
 	if err != nil {
 		t.Fatalf("Failed to remove user favorite: %v", err)
 	}
@@ -72,7 +95,7 @@ func TestRemoveUserFavorite(t *testing.T) {
 		t.Fatalf("Failed to fetch user favorites: %v", err)
 	}
 
-	if len(products) != 1 {
+	if len(products) != 2 {
 		t.Fatalf("Number of products return should be 2 but is %d instead", len(products))
 	}
 }

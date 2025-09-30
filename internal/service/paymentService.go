@@ -86,7 +86,7 @@ func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idemp
 			// We should give up immediately.
 			if stripeErr.Type != stripe.ErrorTypeAPI {
 				// Translate this permanent error and exit the entire function now.
-				return "", p.translateStripeError(err)
+				return "", p.TranslateStripeError(err)
 			}
 		}
 
@@ -102,14 +102,14 @@ func (p *PaymentService) CreatePaymentIntent(ctx context.Context, orderID, idemp
 	// After the loop, if we still have an error, it means all our retries failed.
 	// We translate this final error and return it.
 	if err != nil {
-		return "", p.translateStripeError(err)
+		return "", p.TranslateStripeError(err)
 	}
 
 	// If we're here, `pi` must be valid and `err` must be nil. Success!
 	return pi.ClientSecret, nil
 }
 
-func (p *PaymentService) translateStripeError(err error) error {
+func (p *PaymentService) TranslateStripeError(err error) error {
 	if stripeErr, ok := err.(*stripe.Error); ok {
 		switch stripeErr.Code {
 		case stripe.ErrorCodeCardDeclined:
