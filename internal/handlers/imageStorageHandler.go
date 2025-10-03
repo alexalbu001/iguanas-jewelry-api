@@ -28,6 +28,7 @@ func NewImageStorageHandlers(imageStorage storage.ImageStorage) *ImageStorageHan
 // @Failure 404 {object} responses.ErrorResponse
 // @Failure 500 {object} responses.ErrorResponse
 // @Router /images/{filepath} [get]
+// Local Development only
 func (h *ImageStorageHandlers) ServeImage(c *gin.Context) {
 	filepath := c.Param("filepath")
 

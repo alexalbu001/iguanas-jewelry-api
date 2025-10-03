@@ -81,6 +81,38 @@ local region = std.extVar('region');
           name: 'CORS_ALLOWED_ORIGINS',
           value: std.format('https://%s-frontend.com,https://%s-admin.com', [env, env]),
         },
+        {
+          name: 'FROM_EMAIL',
+          value: 'alexalbu001@gmail.com',
+        },
+        {
+          name: 'FROM_NAME',
+          value: 'Iguanas Jewelry',
+        },
+        {
+          name: 'IMAGE_STORAGE_BUCKET',
+          value:"iguanas-jewelry-assets"
+        },
+        {
+          name: 'IMAGE_STORAGE_BASE_URL',
+          value: 'https://www.iguanasjewellery.com'
+        },
+        {
+          name: 'IMAGE_STORAGE_REGION',
+          value:"eu-west-1"
+        },
+        {
+          name: 'ADMIN_EMAIL',
+          value:"alexalbu001@gmail.com"
+        },
+        {
+          name: 'ADMIN_ORIGIN',
+          value:"https://admin.iguanasjewellery.com"
+        },
+        {
+          name: 'REDIRECT_URL',
+          value:"https://api.iguanasjewellery.com/auth/google/callback"
+        },
       ],
       linuxParameters: {
         initProcessEnabled: true,  // Used for ecs execute-command to avoid SSM agent child processes becoming orphaned.
@@ -115,49 +147,9 @@ local region = std.extVar('region');
           valueFrom: std.format('/secrets/iguanas-jewelry/GOOGLE_CLIENT_SECRET', []),
         },
         {
-          name: 'REDIRECT_URL',
-          valueFrom: std.format('/secrets/iguanas-jewelry/REDIRECT_URL', []),
-        },
-        {
-          name: 'ADMIN_ORIGIN',
-          valueFrom: std.format('/secrets/iguanas-jewelry/ADMIN_ORIGIN', []),
-        },
-        {
-          name: 'ADMIN_EMAIL',
-          valueFrom: std.format('/secrets/iguanas-jewelry/ADMIN_EMAIL', []),
-        },
-        {
-          name: 'QUEUE_URL',
-          valueFrom: std.format('/secrets/iguanas-jewelry/QUEUE_URL', []),
-        },
-        {
-          name: 'AWS_ENDPOINT_URL_SQS',
-          valueFrom: std.format('/secrets/iguanas-jewelry/AWS_ENDPOINT_URL_SQS', []),
-        },
-        {
-          name: 'IMAGE_STORAGE_BASE_URL',
-          valueFrom: std.format('/secrets/iguanas-jewelry/IMAGE_STORAGE_BASE_URL', []),
-        },
-        {
-          name: 'IMAGE_STORAGE_BUCKET',
-          valueFrom: std.format('/secrets/iguanas-jewelry/IMAGE_STORAGE_BUCKET', []),
-        },
-        {
-          name: 'IMAGE_STORAGE_REGION',
-          valueFrom: std.format('/secrets/iguanas-jewelry/IMAGE_STORAGE_REGION', []),
-        },
-        {
           name: 'SENDGRID_API_KEY',
           valueFrom: std.format('/secrets/iguanas-jewelry/SENDGRID_API_KEY', []),
-        },
-        {
-          name: 'FROM_EMAIL',
-          valueFrom: std.format('/secrets/iguanas-jewelry/FROM_EMAIL', []),
-        },
-        {
-          name: 'FROM_NAME',
-          valueFrom: std.format('/secrets/iguanas-jewelry/FROM_NAME', []),
-        },
+        }
       ],
       readonlyRootFilesystem: false,
       interactive: false,

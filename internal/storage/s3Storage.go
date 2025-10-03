@@ -52,16 +52,17 @@ func (s *S3Storage) GenerateUploadURL(ctx context.Context, key, contentType stri
 }
 
 func (s *S3Storage) GetImageURL(ctx context.Context, key string) (string, error) {
-	presignedURL, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
-	}, func(opts *s3.PresignOptions) {
-		opts.Expires = time.Minute * 15
-	})
-	if err != nil {
-		return "", err
-	}
-	return presignedURL.URL, nil
+	return fmt.Sprintf("%s/%s", s.baseURL, key), nil //public Cloudfront URL
+	// presignedURL, err := s.presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+	// 	Bucket: aws.String(s.bucket),
+	// 	Key:    aws.String(key),
+	// }, func(opts *s3.PresignOptions) {
+	// 	opts.Expires = time.Minute * 15
+	// })
+	// if err != nil {
+	// 	return "", err
+	// }
+	// return presignedURL.URL, nil
 }
 
 // This delete goes through the API. It doesn't generate a presigned URL for client because its not a safe operation.
@@ -142,6 +143,7 @@ func (s *S3Storage) Store(ctx context.Context, key string, data []byte) error {
 	return err
 }
 
+// Download image for processing
 func (s *S3Storage) Get(ctx context.Context, key string) ([]byte, error) {
 	result, err := s.s3client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
