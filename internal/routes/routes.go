@@ -45,7 +45,7 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	r.GET("/images/*filepath", imageStorageHandler.ServeImage)
+	r.GET("/images/*filepath", imageStorageHandler.ServeImage) // Local development.
 	// Auth routes (no /api/v1 prefix for OAuth)
 	auth := r.Group("/auth")
 	auth.Use(rateLimitMiddleware)

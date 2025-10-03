@@ -104,7 +104,13 @@ jobs:
       - name: Run database migrations
         run: |
           # Get the database URL from AWS SSM Parameter Store
-          DATABASE_URL=$(aws ssm get-parameter --name "/secrets/iguanas-jewelry/DATABASE_URL" --with-decryption --query "Parameter.Value" --output text --region ${{ env.AWS_REGION }})
+          # Note: Redirecting to /dev/null to prevent credentials from appearing in logs
+          DATABASE_URL=$(aws ssm get-parameter --name "/DATABASE_URL" --with-decryption --query "Parameter.Value" --output text --region ${{ env.AWS_REGION }} 2>/dev/null)
+          
+          if [ -z "$DATABASE_URL" ]; then
+            echo "ERROR: Failed to retrieve DATABASE_URL from SSM Parameter Store"
+            exit 1
+          fi
           
           # Run migrations
           migrate -database "$DATABASE_URL" -path migrations up
