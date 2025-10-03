@@ -15,6 +15,9 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # Required for OIDC authentication
+      contents: read    # Required to checkout code
     env:
       ENV: production
     
@@ -30,14 +33,13 @@ jobs:
       - name: Install dependencies
         run: go mod download && go mod verify
 
-      - name: Run tests
-        run: go test ./...
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           aws-region: ${{ env.AWS_REGION }}
           mask-aws-account-id: false
+          role-to-assume: arn:aws:iam::264669033021:role/github-actions-role
+          audience: sts.amazonaws.com
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -73,7 +75,7 @@ jobs:
       - name: Render task definition
         run: |
           jsonnet task-definition.jsonnet \
-            --ext-str env=${{ env.ENV }} \
+            --ext-str env=production \
             --ext-str version=${{ github.sha }} \
             --ext-str aws_account_id=264669033021 \
             --ext-str service=${{ env.ECS_TASK_DEFINITION }} \

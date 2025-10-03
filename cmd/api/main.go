@@ -248,7 +248,7 @@ func main() {
 			}
 		} else {
 			if err := srv.ListenAndServeTLS("localhost+2.pem", "localhost+2-key.pem"); err != nil && err != http.ErrServerClosed {
-				fmt.Errorf("Server forced to shutdown", "error", err)
+				// fmt.Errorf("Server forced to shutdown", "error", err)
 				logger.Error("Server failed to start", "error", err)
 				os.Exit(1)
 			}
