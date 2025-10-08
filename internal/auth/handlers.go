@@ -62,7 +62,10 @@ func (h *AuthHandlers) GoogleLogin(c *gin.Context) {
 		}
 		state += "|popup=true|origin=" + origin
 	}
-	c.SetCookie("state", state, 3600, "/", "localhost", false, true)
+
+	// Use proper cookie settings for production
+	domain, secure := h.getCookieSettings()
+	c.SetCookie("state", state, 3600, "/", domain, secure, true)
 	redirect := h.Config.AuthCodeURL(state)
 	c.Redirect(302, redirect)
 }
@@ -98,7 +101,10 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 
 	client := h.Config.Client(c.Request.Context(), token)
 	resp, _ := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")
-	c.SetCookie("state", "", -1, "/", "", false, false)
+
+	// Clear state cookie with same domain settings
+	domain, secure := h.getCookieSettings()
+	c.SetCookie("state", "", -1, "/", domain, secure, true)
 	defer resp.Body.Close()
 
 	var userInfo googleInfo
@@ -156,20 +162,18 @@ func (h *AuthHandlers) GoogleCallback(c *gin.Context) {
 	csrfToken := generateCSRFToken()
 
 	// Set production-ready httpOnly cookies with security flags
-	domain, secure := h.getCookieSettings()
+	domain, secure = h.getCookieSettings()
 
 	http.SetCookie(c.Writer, &http.Cookie{
 		Name:     "jwt_token",
 		Value:    JWTToken,
 		MaxAge:   86400,
 		Path:     "/",
-		Domain:   "localhost",
-		Secure:   true, // Required for SameSite=None
+		Domain:   domain, // Use correct domain from getCookieSettings
+		Secure:   secure, // Use correct secure setting from getCookieSettings
 		HttpOnly: true,
 		SameSite: http.SameSiteNoneMode, // Allows cross-site requests
 	})
-	// Set httpOnly cookies with proper security attributes
-	// c.SetCookie("jwt_token", JWTToken, 86400, "/", domain, secure, true)
 
 	// CSRF token - not httpOnly so frontend can read it for API requests
 	c.SetCookie("csrf_token", csrfToken, 86400, "/", domain, secure, false)
@@ -294,7 +298,8 @@ func (h *AuthHandlers) getCookieSettings() (domain string, secure bool) {
 			if strings.Contains(adminURL, ".") {
 				parts := strings.Split(adminURL, ".")
 				if len(parts) >= 2 {
-					domain = strings.Join(parts[1:], ".") // example.com
+					// Use .domain.com to share cookies across all subdomains (www, api, etc.)
+					domain = "." + strings.Join(parts[len(parts)-2:], ".") // .example.com
 				}
 			}
 		}
