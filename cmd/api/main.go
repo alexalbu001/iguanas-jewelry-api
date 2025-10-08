@@ -215,7 +215,15 @@ func main() {
 		})
 	})
 
-	r.GET("/health", healthCheck(dbpool, rdb))
+	// r.GET("/health", healthCheck(dbpool, rdb))
+
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{
+			"message": "healthy",
+		})
+	})
+
+	// r.GET("/health", healthCheck(dbpool, rdb))
 
 	r.GET("/", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{

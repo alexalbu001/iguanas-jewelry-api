@@ -13,11 +13,29 @@ env:
   ECS_TASK_DEFINITION: iguanas-jewelry-api
 
 jobs:
-  build-and-deploy:
+  # Check if migrations changed
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      migrations: ${{ steps.changes.outputs.migrations }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check for migration changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            migrations:
+              - 'migrations/**'
+
+  # Build and push Docker image
+  build:
     runs-on: ubuntu-latest
     permissions:
-      id-token: write   # Required for OIDC authentication
-      contents: read    # Required to checkout code
+      id-token: write
+      contents: read
     env:
       ENV: production
     
@@ -65,6 +83,177 @@ jobs:
             ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest
           platforms: linux/amd64
 
+  # Run database migrations
+  migrate:
+    runs-on: ubuntu-latest
+    needs: [check-changes, build]
+    if: needs.check-changes.outputs.migrations == 'true'
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      ENV: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: false
+          role-to-assume: arn:aws:iam::264669033021:role/github-actions-role
+          audience: sts.amazonaws.com
+
+      - name: Install Jsonnet
+        run: |
+          wget https://github.com/google/go-jsonnet/releases/download/v0.20.0/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+          tar -xzf go-jsonnet_0.20.0_Linux_x86_64.tar.gz
+          sudo mv jsonnet /usr/local/bin/
+          jsonnet --version
+
+      - name: Render migration task definition
+        run: |
+          jsonnet migration-task-definition.jsonnet \
+            --ext-str env=production \
+            --ext-str version=${{ github.sha }} \
+            --ext-str aws_account_id=264669033021 \
+            --ext-str service=${{ env.ECS_TASK_DEFINITION }} \
+            --ext-str region=${{ env.AWS_REGION }} \
+            > migration-task-definition.json
+          
+          echo "Generated migration task definition:"
+          cat migration-task-definition.json
+
+      - name: Register migration task definition
+        run: |
+          MIGRATION_TASK_DEF=$(aws ecs register-task-definition \
+            --cli-input-json file://migration-task-definition.json \
+            --region ${{ env.AWS_REGION }})
+          
+          MIGRATION_TASK_ARN=$(echo $MIGRATION_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn')
+          echo "MIGRATION_TASK_ARN=$MIGRATION_TASK_ARN" >> $GITHUB_ENV
+          echo "Registered migration task definition: $MIGRATION_TASK_ARN"
+
+      - name: Get network configuration
+        run: |
+          # Get the ECS security group ID
+          ECS_SG_ID=$(aws ec2 describe-security-groups \
+            --filters "Name=group-name,Values=iguanas-jewellery-ecs-sg" \
+            --query "SecurityGroups[0].GroupId" \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+          
+          echo "Found ECS Security Group: $ECS_SG_ID"
+          
+          # Get the VPC ID from the security group
+          VPC_ID=$(aws ec2 describe-security-groups \
+            --group-ids $ECS_SG_ID \
+            --query "SecurityGroups[0].VpcId" \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+          
+          echo "Found VPC: $VPC_ID"
+          
+          # Get private subnet IDs from the VPC (filter by route table without IGW)
+          PRIVATE_SUBNETS=$(aws ec2 describe-subnets \
+            --filters "Name=vpc-id,Values=$VPC_ID" \
+            --query "Subnets[?MapPublicIpOnLaunch==\`false\`].SubnetId" \
+            --output text \
+            --region ${{ env.AWS_REGION }} | tr '\t' ',')
+          
+          if [ -z "$PRIVATE_SUBNETS" ]; then
+            echo "ERROR: No private subnets found in VPC $VPC_ID"
+            exit 1
+          fi
+          
+          echo "ECS_SG_ID=$ECS_SG_ID" >> $GITHUB_ENV
+          echo "PRIVATE_SUBNETS=$PRIVATE_SUBNETS" >> $GITHUB_ENV
+          echo "Using Security Group: $ECS_SG_ID"
+          echo "Using Private Subnets: $PRIVATE_SUBNETS"
+
+      - name: Run database migrations
+        run: |
+          echo "Starting database migration task..."
+          
+          # Run the migration task
+          RUN_TASK_OUTPUT=$(aws ecs run-task \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --task-definition ${{ env.MIGRATION_TASK_ARN }} \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ env.PRIVATE_SUBNETS }}],securityGroups=[${{ env.ECS_SG_ID }}],assignPublicIp=DISABLED}" \
+            --region ${{ env.AWS_REGION }})
+          
+          # Get the task ARN
+          TASK_ARN=$(echo $RUN_TASK_OUTPUT | jq -r '.tasks[0].taskArn')
+          
+          if [ -z "$TASK_ARN" ] || [ "$TASK_ARN" = "null" ]; then
+            echo "ERROR: Failed to start migration task"
+            echo "$RUN_TASK_OUTPUT" | jq '.'
+            exit 1
+          fi
+          
+          echo "Migration task started: $TASK_ARN"
+          
+          # Wait for the task to complete (timeout after 5 minutes)
+          echo "Waiting for migration task to complete..."
+          aws ecs wait tasks-stopped \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --region ${{ env.AWS_REGION }}
+          
+          # Get detailed task information
+          TASK_DETAILS=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --region ${{ env.AWS_REGION }})
+          
+          # Check the exit code
+          TASK_STATUS=$(echo "$TASK_DETAILS" | jq -r '.tasks[0].containers[0].exitCode // "null"')
+          TASK_REASON=$(echo "$TASK_DETAILS" | jq -r '.tasks[0].stoppedReason // "unknown"')
+          CONTAINER_REASON=$(echo "$TASK_DETAILS" | jq -r '.tasks[0].containers[0].reason // "unknown"')
+          
+          echo "Task Status: $TASK_STATUS"
+          echo "Task Stopped Reason: $TASK_REASON"
+          echo "Container Reason: $CONTAINER_REASON"
+          
+          if [ "$TASK_STATUS" = "0" ]; then
+            echo "✓ Database migrations completed successfully"
+          else
+            echo "✗ Database migration task failed"
+            echo ""
+            echo "Full task details:"
+            echo "$TASK_DETAILS" | jq '.tasks[0] | {lastStatus, stopCode, stoppedReason, containers: .containers[] | {name, exitCode, reason}}'
+            exit 1
+          fi
+
+  # Deploy to ECS
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [check-changes, build, migrate]
+    if: |
+      always() &&
+      needs.build.result == 'success' &&
+      (needs.migrate.result == 'success' || needs.migrate.result == 'skipped')
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      ENV: production
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          mask-aws-account-id: false
+          role-to-assume: arn:aws:iam::264669033021:role/github-actions-role
+          audience: sts.amazonaws.com
+
       - name: Install Jsonnet
         run: |
           wget https://github.com/google/go-jsonnet/releases/download/v0.20.0/go-jsonnet_0.20.0_Linux_x86_64.tar.gz
@@ -89,46 +278,28 @@ jobs:
         run: |
           TASK_DEFINITION=$(aws ecs register-task-definition \
             --cli-input-json file://task-definition.json \
-            --region ${{ env.AWS_REGION }} )
+            --region ${{ env.AWS_REGION }})
           
           TASK_DEFINITION_ARN=$(echo $TASK_DEFINITION | jq -r '.taskDefinition.taskDefinitionArn')
-
-
-      - name: Install migrate tool
-        run: |
-          wget https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz
-          tar -xzf migrate.linux-amd64.tar.gz
-          sudo mv migrate /usr/local/bin/
-          migrate -version
-
-      - name: Run database migrations
-        run: |
-          # Get the database URL from AWS SSM Parameter Store
-          # Note: Redirecting to /dev/null to prevent credentials from appearing in logs
-          DATABASE_URL=$(aws ssm get-parameter --name "/DATABASE_URL" --with-decryption --query "Parameter.Value" --output text --region ${{ env.AWS_REGION }} 2>/dev/null)
-          
-          if [ -z "$DATABASE_URL" ]; then
-            echo "ERROR: Failed to retrieve DATABASE_URL from SSM Parameter Store"
-            exit 1
-          fi
-          
-          # Run migrations
-          migrate -database "$DATABASE_URL" -path migrations up
-          
-          echo "Database migrations completed successfully"
+          echo "TASK_DEFINITION_ARN=$TASK_DEFINITION_ARN" >> $GITHUB_ENV
+          echo "Registered task definition: $TASK_DEFINITION_ARN"
 
       - name: Update ECS service
         run: |
-          # Update the ECS service
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service ${{ env.ECS_SERVICE }} \
-            --task-definition $TASK_DEFINITION_ARN \
+            --task-definition ${{ env.TASK_DEFINITION_ARN }} \
             --region ${{ env.AWS_REGION }}
+          
+          echo "✓ ECS service updated with new task definition"
 
       - name: Wait for deployment to complete
         run: |
+          echo "Waiting for ECS service to stabilize..."
           aws ecs wait services-stable \
             --cluster ${{ env.ECS_CLUSTER }} \
             --services ${{ env.ECS_SERVICE }} \
             --region ${{ env.AWS_REGION }}
+          
+          echo "✓ Deployment completed successfully"

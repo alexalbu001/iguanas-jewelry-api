@@ -20,12 +20,21 @@ RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/api/main
 
 FROM alpine:latest AS production
 
-# Add ca-certificates for HTTPS calls
-RUN apk --no-cache add ca-certificates
+# Add ca-certificates for HTTPS calls and migration tool
+RUN apk --no-cache add ca-certificates curl && \
+    wget -O /tmp/migrate.tar.gz https://github.com/golang-migrate/migrate/releases/download/v4.17.0/migrate.linux-amd64.tar.gz && \
+    tar -xzf /tmp/migrate.tar.gz -C /tmp && \
+    mv /tmp/migrate /usr/local/bin/migrate && \
+    chmod +x /usr/local/bin/migrate && \
+    rm /tmp/migrate.tar.gz
+
 WORKDIR /root/
 
 # Copy binary from builder stage
 COPY --from=build /app/main .
+
+# Copy migrations folder
+COPY --from=build /app/migrations ./migrations
 
 EXPOSE 8080
 

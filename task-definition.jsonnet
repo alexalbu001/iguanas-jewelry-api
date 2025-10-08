@@ -62,6 +62,10 @@ local region = std.extVar('region');
           value: version,
         },
         {
+          name: 'PORT',
+          value: '8080',
+        },
+        {
           name: 'LOG_LEVEL',
           value: 'info',
         },
@@ -79,7 +83,7 @@ local region = std.extVar('region');
         },
         {
           name: 'CORS_ALLOWED_ORIGINS',
-          value: std.format('https://%s-frontend.com,https://%s-admin.com', [env, env]),
+          value: 'https://iguanasjewellery.com,https://www.iguanasjewellery.com,https://admin.iguanasjewellery.com',
         },
         {
           name: 'FROM_EMAIL',
@@ -124,31 +128,31 @@ local region = std.extVar('region');
         },
         {
           name: 'DATABASE_URL',
-          valueFrom: std.format('/secrets/iguanas-jewelry/DATABASE_URL', []),
+          valueFrom: 'DATABASE_URL',
         },
         {
           name: 'REDIS_URL',
-          valueFrom: std.format('/secrets/iguanas-jewelry/REDIS_URL', []),
+          valueFrom: 'REDIS_URL',
         },
         {
           name: 'STRIPE_SECRET_KEY',
-          valueFrom: std.format('/secrets/iguanas-jewelry/STRIPE_SECRET_KEY', []),
+          valueFrom: 'STRIPE_SECRET_KEY',
         },
         {
           name: 'STRIPE_WEBHOOK_SECRET',
-          valueFrom: std.format('/secrets/iguanas-jewelry/STRIPE_WEBHOOK_SECRET', []),
+          valueFrom: 'STRIPE_WEBHOOK_SECRET',
         },
         {
           name: 'GOOGLE_CLIENT_ID',
-          valueFrom: std.format('/secrets/iguanas-jewelry/GOOGLE_CLIENT_ID', []),
+          valueFrom: 'GOOGLE_CLIENT_ID',
         },
         {
           name: 'GOOGLE_CLIENT_SECRET',
-          valueFrom: std.format('/secrets/iguanas-jewelry/GOOGLE_CLIENT_SECRET', []),
+          valueFrom: 'GOOGLE_CLIENT_SECRET',
         },
         {
           name: 'SENDGRID_API_KEY',
-          valueFrom: std.format('/secrets/iguanas-jewelry/SENDGRID_API_KEY', []),
+          valueFrom: 'SENDGRID_API_KEY',
         }
       ],
       readonlyRootFilesystem: false,

@@ -77,10 +77,10 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to load config: %w", err)
 	}
 
-	// Set environment-specific defaults
-	if cfg.Env == "production" && cfg.AppPort == 8080 {
-		cfg.AppPort = 443
-	}
+	// // Set environment-specific defaults
+	// if cfg.Env == "production" && cfg.AppPort == 8080 {
+	cfg.AppPort = 8080
+	// }
 
 	return &cfg, nil
 }
