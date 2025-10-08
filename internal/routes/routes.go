@@ -27,14 +27,14 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 			FrameDeny:             true,
 			ContentTypeNosniff:    true,
 			ReferrerPolicy:        "strict-origin-when-cross-origin",
-			ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data: https:; connect-src 'self';",
+			ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data: https:; connect-src 'self' https://api.stripe.com;",
 		}))
 	} else {
 		r.Use(secure.New(secure.Config{
 			FrameDeny:             true,
 			ContentTypeNosniff:    true,
 			ReferrerPolicy:        "strict-origin-when-cross-origin",
-			ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data: https:; connect-src 'self';",
+			ContentSecurityPolicy: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data: https:; connect-src 'self' https://api.stripe.com;",
 		}))
 	}
 	r.Use(middleware.CorrelationID())
