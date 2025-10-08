@@ -45,7 +45,7 @@ func (h *ProductHandlers) GetProducts(c *gin.Context) {
 		c.Error(err)
 		return
 	}
-	var productResponses []responses.ProductListResponse
+	productResponses := make([]responses.ProductListResponse, 0, len(products))
 	for _, product := range products {
 		response := responses.ProductListResponse{
 			Product: product,
