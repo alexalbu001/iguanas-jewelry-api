@@ -299,10 +299,10 @@ func (o *OrdersService) GetOrdersHistory(ctx context.Context, userID string) ([]
 	}
 
 	if len(orders) == 0 {
-		return nil, nil
+		return []OrderSummary{}, nil
 	}
 
-	var orderSummaries []OrderSummary
+	orderSummaries := make([]OrderSummary, 0, len(orders))
 	orderIDs, err := utils.ExtractOrderIDs(orders)
 	if err != nil {
 		return nil, fmt.Errorf("Error extracting order ids: %w", err)
@@ -531,12 +531,16 @@ func (o *OrdersService) UpdateOrderStatus(ctx context.Context, status, orderID s
 
 	err = o.TxManager.WithTransaction(ctx, func(tx pgx.Tx) error {
 		if err := o.orderStore.UpdateOrderStatusTx(ctx, status, order.ID, tx); err != nil {
-			return fmt.Errorf("Failed to cancel order: %w", err)
+			return fmt.Errorf("Failed to update order status: %w", err)
 		}
-		for _, item := range orderItems {
-			err = o.productsStore.UpdateStockTx(ctx, item.ProductID, item.Quantity, tx)
-			if err != nil {
-				return fmt.Errorf("Failed to update product stock: %w", err)
+
+		// Only restore stock if the order is being cancelled
+		if status == "cancelled" {
+			for _, item := range orderItems {
+				err = o.productsStore.UpdateStockTx(ctx, item.ProductID, item.Quantity, tx)
+				if err != nil {
+					return fmt.Errorf("Failed to restore product stock: %w", err)
+				}
 			}
 		}
 		return nil
@@ -544,6 +548,9 @@ func (o *OrdersService) UpdateOrderStatus(ctx context.Context, status, orderID s
 	if err != nil {
 		return fmt.Errorf("Transaction failed :%w", err)
 	}
+
+	// After transaction commits successfully, invalidate product cache
+	o.invalidateProductCache(ctx, orderItems)
 
 	return nil
 }

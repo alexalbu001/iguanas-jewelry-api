@@ -183,12 +183,12 @@ func main() {
 
 	productsService := service.NewProductsService(cachedProductsStore)
 	userService := service.NewUserService(userStore)
-	cartsService := service.NewCartsService(cartsStore, productStore, userStore, tx)
-	ordersService := service.NewOrderService(ordersStore, productStore, cartsStore, tx)
+	cartsService := service.NewCartsService(cartsStore, cachedProductsStore, userStore, tx)
+	ordersService := service.NewOrderService(ordersStore, cachedProductsStore, cartsStore, tx)
 	paymentService := service.NewPaymentService(paymentStore, ordersStore)
 	jwtService := auth.NewJWTService(cfg.JWTSecret)
 	productImagesSevice := service.NewProductImagesService(productImagesStore, userStore, imageStorage, tx)
-	userFavoritesService := service.NewUserFavoritesService(userFavoritesStore, productStore)
+	userFavoritesService := service.NewUserFavoritesService(userFavoritesStore, cachedProductsStore)
 	emailService := service.NewSendgridEmailService(sendgridClient, cfg.Sendgrid.FromEmail, cfg.Sendgrid.FromName)
 	//create handlers with store
 
