@@ -417,6 +417,11 @@ func (o *OrdersService) GetAllOrders(ctx context.Context) ([]OrderSummary, error
 		return nil, fmt.Errorf("Error retrieving orders: %w", err)
 	}
 
+	// Return empty slice if no orders exist
+	if len(orders) == 0 {
+		return []OrderSummary{}, nil
+	}
+
 	orderIDs, err := utils.ExtractOrderIDs(orders)
 	if err != nil {
 		return nil, fmt.Errorf("Error extracting orders ids: %w", err)
@@ -427,7 +432,8 @@ func (o *OrdersService) GetAllOrders(ctx context.Context) ([]OrderSummary, error
 		return nil, fmt.Errorf("Error retrieving order items: %w", err)
 	}
 
-	var orderSummaries []OrderSummary
+	// Initialize with capacity to avoid nil slice
+	orderSummaries := make([]OrderSummary, 0, len(orders))
 
 	var allProductIDs []string
 	for _, orderItems := range ordersItemsMap {

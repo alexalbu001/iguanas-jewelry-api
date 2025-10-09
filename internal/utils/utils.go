@@ -18,8 +18,9 @@ func ExtractProductIDs(cartItems []models.CartItems) ([]string, error) {
 }
 
 func ExtractProductIDsFromOrderItems(orderItems []models.OrderItem) ([]string, error) {
+	// Return empty slice instead of error when no order items exist
 	if len(orderItems) == 0 {
-		return nil, fmt.Errorf("No order items")
+		return []string{}, nil
 	}
 
 	var productIDs []string
@@ -30,8 +31,9 @@ func ExtractProductIDsFromOrderItems(orderItems []models.OrderItem) ([]string, e
 }
 
 func ExtractOrderIDs(orders []models.Order) ([]string, error) {
+	// Return empty slice instead of error when no orders exist
 	if len(orders) == 0 {
-		return nil, fmt.Errorf("No orders available")
+		return []string{}, nil
 	}
 
 	var orderIDs []string
