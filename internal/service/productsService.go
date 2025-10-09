@@ -23,6 +23,7 @@ type ProductsStore interface {
 	Restore(ctx context.Context, id string) error
 	UpdateStock(ctx context.Context, productID string, stockChange int) error
 	UpdateStockTx(ctx context.Context, productID string, stockChange int, tx pgx.Tx) error
+	InvalidateProductCache(ctx context.Context, productIDs []string) error
 }
 
 type ProductsService struct {

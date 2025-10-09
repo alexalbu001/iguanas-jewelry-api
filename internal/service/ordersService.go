@@ -285,6 +285,10 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 		return OrderSummary{}, err
 	}
 
+	// After transaction commits successfully, invalidate product cache
+	// This ensures the product list API returns updated stock quantities
+	o.invalidateProductCache(ctx, orderItems)
+
 	return orderSummary, nil
 }
 
@@ -648,6 +652,21 @@ func (o *OrdersService) ClearCartAfterPayment(ctx context.Context, userID string
 	return nil
 }
 
+// invalidateProductCache invalidates the cache for products in order items
+func (o *OrdersService) invalidateProductCache(ctx context.Context, orderItems []models.OrderItem) {
+	if len(orderItems) == 0 {
+		return
+	}
+
+	productIDs := make([]string, 0, len(orderItems))
+	for _, item := range orderItems {
+		productIDs = append(productIDs, item.ProductID)
+	}
+
+	// Call cache invalidation (ignore errors as it's not critical)
+	o.productsStore.InvalidateProductCache(ctx, productIDs)
+}
+
 // CancelOrderAndRestoreStock cancels an order and restores the stock
 func (o *OrdersService) CancelOrderAndRestoreStock(ctx context.Context, orderID string) error {
 
@@ -679,6 +698,10 @@ func (o *OrdersService) CancelOrderAndRestoreStock(ctx context.Context, orderID 
 	if err != nil {
 		return fmt.Errorf("failed to cancel order and restore stock: %w", err)
 	}
+
+	// After transaction commits successfully, invalidate product cache
+	// This ensures the product list API returns updated stock quantities
+	o.invalidateProductCache(ctx, orderItems)
 
 	return nil
 }

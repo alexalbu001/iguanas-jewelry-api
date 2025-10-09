@@ -141,6 +141,11 @@ func (m *MockProductStore) Restore(ctx context.Context, id string) error {
 	return nil
 }
 
+func (m *MockProductStore) InvalidateProductCache(ctx context.Context, productIDs []string) error {
+	// Mock doesn't use cache, so this is a no-op
+	return nil
+}
+
 /////////////////////////////////////
 // Carts
 

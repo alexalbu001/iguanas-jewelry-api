@@ -318,6 +318,12 @@ func (h *ProductsStore) UpdateStockTx(ctx context.Context, productID string, sto
 	return nil
 }
 
+// InvalidateProductCache is a no-op for the non-cached store
+func (h *ProductsStore) InvalidateProductCache(ctx context.Context, productIDs []string) error {
+	// No caching in base store, so nothing to invalidate
+	return nil
+}
+
 // Restore soft-deleted product
 func (h *ProductsStore) Restore(ctx context.Context, id string) error {
 	sql := `

@@ -199,3 +199,21 @@ func (c *CachedProductsStore) Restore(ctx context.Context, id string) error {
 	c.redisClient.Del(ctx, "products:all", "product:"+id).Err()
 	return nil
 }
+
+// InvalidateProductCache invalidates the cache for specific products
+// This should be called after transactions that modify product stock
+func (c *CachedProductsStore) InvalidateProductCache(ctx context.Context, productIDs []string) error {
+	if len(productIDs) == 0 {
+		return nil
+	}
+
+	// Build list of cache keys to invalidate
+	keys := []string{"products:all"} // Always invalidate the full product list
+	for _, id := range productIDs {
+		keys = append(keys, "product:"+id)
+	}
+
+	// Invalidate all keys (ignore errors as cache invalidation is not critical)
+	c.redisClient.Del(ctx, keys...).Err()
+	return nil
+}
