@@ -12,6 +12,7 @@ import (
 type EmailService interface {
 	SendOrderConfirmation(ctx context.Context, orderSummary OrderSummary) error
 	SendWelcome(ctx context.Context, userName, userEmail string) error
+	SendAdminOrderNotification(ctx context.Context, orderSummary OrderSummary, adminEmail string) error
 }
 
 type SendgridEmailService struct {
@@ -210,6 +211,154 @@ The Iguanas Jewellery Team
 	_, err := s.client.Send(message)
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func (s *SendgridEmailService) SendAdminOrderNotification(ctx context.Context, orderSummary OrderSummary, adminEmail string) error {
+	from := mail.NewEmail(s.fromName, s.fromEmail)
+	to := mail.NewEmail("Admin", adminEmail)
+	subject := fmt.Sprintf("🛍️ New Order Received - #%s", orderSummary.ID[:8])
+
+	plainTextContent := fmt.Sprintf(`
+New Order Received!
+
+Order Details:
+Order #: %s
+Customer: %s
+Email: %s
+Phone: %s
+Total: £%.2f
+Status: %s
+Order Date: %s
+
+Items Ordered:
+%s
+
+Shipping Address:
+%s
+%s
+%s, %s %s
+%s
+
+Action Required:
+- Review and process this order in the admin panel
+- Prepare items for shipment
+- Update order status when shipped
+
+View order in admin panel: https://admin.iguanasjewellery.com/orders
+`,
+		orderSummary.ID,
+		orderSummary.ShippingName,
+		orderSummary.ShippingAddress.Email,
+		orderSummary.ShippingAddress.Phone,
+		orderSummary.Total,
+		orderSummary.Status,
+		orderSummary.CreatedDate.Format("January 2, 2006 at 3:04 PM"),
+		formatOrderItems(orderSummary.OrderItems),
+		orderSummary.ShippingName,
+		orderSummary.ShippingAddress.AddressLine1,
+		orderSummary.ShippingAddress.City,
+		orderSummary.ShippingAddress.State,
+		orderSummary.ShippingAddress.PostalCode,
+		orderSummary.ShippingAddress.Country)
+
+	htmlContent := fmt.Sprintf(`
+<html>
+<body style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
+	<div style="max-width: 700px; margin: 0 auto; padding: 20px;">
+		<div style="background: linear-gradient(135deg, #2c5aa0 0%%, #1a3d6b 100%%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+			<h1 style="margin: 0; font-size: 28px;">🛍️ New Order Received!</h1>
+			<p style="margin: 10px 0 0 0; font-size: 18px; opacity: 0.9;">A customer has just placed an order</p>
+		</div>
+		
+		<div style="background: #f8f9fa; padding: 25px; border-left: 4px solid #28a745;">
+			<h2 style="margin-top: 0; color: #2c5aa0;">Order Information</h2>
+			<table style="width: 100%%; border-collapse: collapse;">
+				<tr>
+					<td style="padding: 8px 0; font-weight: bold; width: 130px;">Order #:</td>
+					<td style="padding: 8px 0;">%s</td>
+				</tr>
+				<tr>
+					<td style="padding: 8px 0; font-weight: bold;">Customer:</td>
+					<td style="padding: 8px 0;">%s</td>
+				</tr>
+				<tr>
+					<td style="padding: 8px 0; font-weight: bold;">Email:</td>
+					<td style="padding: 8px 0;"><a href="mailto:%s" style="color: #2c5aa0;">%s</a></td>
+				</tr>
+				<tr>
+					<td style="padding: 8px 0; font-weight: bold;">Phone:</td>
+					<td style="padding: 8px 0;"><a href="tel:%s" style="color: #2c5aa0;">%s</a></td>
+				</tr>
+				<tr>
+					<td style="padding: 8px 0; font-weight: bold;">Total:</td>
+					<td style="padding: 8px 0; font-size: 24px; color: #28a745; font-weight: bold;">£%.2f</td>
+				</tr>
+				<tr>
+					<td style="padding: 8px 0; font-weight: bold;">Status:</td>
+					<td style="padding: 8px 0;"><span style="background: #ffc107; color: #000; padding: 4px 12px; border-radius: 15px; font-size: 12px; font-weight: bold; text-transform: uppercase;">%s</span></td>
+				</tr>
+				<tr>
+					<td style="padding: 8px 0; font-weight: bold;">Order Date:</td>
+					<td style="padding: 8px 0;">%s</td>
+				</tr>
+			</table>
+		</div>
+		
+		<div style="margin: 25px 0;">
+			<h2 style="color: #2c5aa0; border-bottom: 2px solid #dee2e6; padding-bottom: 10px;">Items Ordered</h2>
+			%s
+		</div>
+		
+		<div style="background: #fff3cd; padding: 20px; border-left: 4px solid #ffc107; margin: 25px 0;">
+			<h2 style="margin-top: 0; color: #856404;">Shipping Address</h2>
+			<p style="margin: 5px 0; font-size: 16px;"><strong>%s</strong></p>
+			<p style="margin: 5px 0;">%s</p>
+			<p style="margin: 5px 0;">%s, %s %s</p>
+			<p style="margin: 5px 0;">%s</p>
+		</div>
+		
+		<div style="background: #d1ecf1; padding: 20px; border-left: 4px solid #17a2b8; margin: 25px 0;">
+			<h3 style="margin-top: 0; color: #0c5460;">⚡ Action Required</h3>
+			<ul style="margin: 10px 0; padding-left: 20px; color: #0c5460;">
+				<li style="margin: 8px 0;">Review and process this order in the admin panel</li>
+				<li style="margin: 8px 0;">Prepare items for shipment</li>
+				<li style="margin: 8px 0;">Update order status when shipped</li>
+			</ul>
+		</div>
+		
+		<div style="text-align: center; margin: 30px 0;">
+			<a href="https://admin.iguanasjewellery.com/orders" style="background-color: #2c5aa0; color: white; padding: 15px 40px; text-decoration: none; border-radius: 5px; font-weight: bold; font-size: 16px; display: inline-block;">View Order in Admin Panel</a>
+		</div>
+		
+		<div style="text-align: center; padding: 20px; color: #666; font-size: 14px; border-top: 1px solid #dee2e6;">
+			<p>This is an automated notification from Iguanas Jewellery</p>
+		</div>
+	</div>
+</body>
+</html>`,
+		orderSummary.ID,
+		orderSummary.ShippingName,
+		orderSummary.ShippingAddress.Email,
+		orderSummary.ShippingAddress.Email,
+		orderSummary.ShippingAddress.Phone,
+		orderSummary.ShippingAddress.Phone,
+		orderSummary.Total,
+		orderSummary.Status,
+		orderSummary.CreatedDate.Format("January 2, 2006 at 3:04 PM"),
+		formatOrderItemsHTML(orderSummary.OrderItems),
+		orderSummary.ShippingName,
+		orderSummary.ShippingAddress.AddressLine1,
+		orderSummary.ShippingAddress.City,
+		orderSummary.ShippingAddress.State,
+		orderSummary.ShippingAddress.PostalCode,
+		orderSummary.ShippingAddress.Country)
+
+	message := mail.NewSingleEmail(from, subject, to, plainTextContent, htmlContent)
+	_, err := s.client.Send(message)
+	if err != nil {
+		return fmt.Errorf("failed to send admin notification email: %w", err)
 	}
 	return nil
 }

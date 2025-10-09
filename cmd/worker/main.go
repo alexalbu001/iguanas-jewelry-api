@@ -15,6 +15,7 @@ import (
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/sendgrid/sendgrid-go"
 )
 
 type ExpirationMessage struct {
@@ -49,7 +50,11 @@ func main() {
 
 	tx := transaction.NewTxManager(dbpool)
 
-	ordersService = service.NewOrderService(ordersStore, productStore, cartsStore, tx)
+	// Initialize email service
+	sendgridClient := sendgrid.NewSendClient(cfg.Sendgrid.SendgridApiKey)
+	emailService := service.NewSendgridEmailService(sendgridClient, cfg.Sendgrid.FromEmail, cfg.Sendgrid.FromName)
+
+	ordersService = service.NewOrderService(ordersStore, productStore, cartsStore, emailService, cfg.AdminEmail, tx)
 
 	lambda.Start(handleExpiration)
 

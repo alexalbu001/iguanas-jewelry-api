@@ -9,6 +9,21 @@ import (
 	"github.com/alexalbu001/iguanas-jewelry-api/internal/utils"
 )
 
+// MockEmailService is a test double that implements EmailService
+type MockEmailService struct{}
+
+func (m *MockEmailService) SendOrderConfirmation(ctx context.Context, orderSummary service.OrderSummary) error {
+	return nil // No-op for tests
+}
+
+func (m *MockEmailService) SendWelcome(ctx context.Context, userName, userEmail string) error {
+	return nil // No-op for tests
+}
+
+func (m *MockEmailService) SendAdminOrderNotification(ctx context.Context, orderSummary service.OrderSummary, adminEmail string) error {
+	return nil // No-op for tests
+}
+
 func setupFreshOrderService() *service.OrdersService {
 	return service.NewOrderService(
 		&utils.MockOrderStore{
@@ -22,6 +37,8 @@ func setupFreshOrderService() *service.OrdersService {
 			CartsStore:     utils.CreateTestCarts(),
 			CartItemsStore: utils.CreateTestCartItems(), // Fresh data each time
 		},
+		&MockEmailService{},
+		"test-admin@example.com",
 		&utils.MockTxManager{},
 	)
 }

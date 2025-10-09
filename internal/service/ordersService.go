@@ -48,13 +48,17 @@ type OrdersService struct {
 	orderStore    OrdersStore
 	productsStore ProductsStore
 	cartsStore    CartsStore
+	emailService  EmailService
+	adminEmail    string
 	TxManager     transaction.TxManager
 }
 
-func NewOrderService(orderStore OrdersStore, productStore ProductsStore, cartsStore CartsStore, TxManager transaction.TxManager) *OrdersService {
+func NewOrderService(orderStore OrdersStore, productStore ProductsStore, cartsStore CartsStore, emailService EmailService, adminEmail string, TxManager transaction.TxManager) *OrdersService {
 	return &OrdersService{
 		orderStore:    orderStore,
 		productsStore: productStore,
+		emailService:  emailService,
+		adminEmail:    adminEmail,
 		cartsStore:    cartsStore,
 		TxManager:     TxManager,
 	}
@@ -288,6 +292,12 @@ func (o *OrdersService) CreateOrderFromCart(ctx context.Context, userID string, 
 	// After transaction commits successfully, invalidate product cache
 	// This ensures the product list API returns updated stock quantities
 	o.invalidateProductCache(ctx, orderItems)
+
+	// Send admin notification email (don't fail order creation if email fails)
+	if err := o.emailService.SendAdminOrderNotification(ctx, orderSummary, o.adminEmail); err != nil {
+		// Log error but don't fail the order creation
+		fmt.Printf("Warning: Failed to send admin notification email: %v\n", err)
+	}
 
 	return orderSummary, nil
 }
