@@ -150,3 +150,13 @@ func (p *ProductsService) RestoreProduct(ctx context.Context, productID string) 
 	}
 	return nil
 }
+
+// InvalidateAllProductCache invalidates the entire product cache
+func (p *ProductsService) InvalidateAllProductCache(ctx context.Context) error {
+	// Passing empty slice will invalidate the "products:all" key in the cache implementation
+	err := p.ProductsStore.InvalidateProductCache(ctx, []string{})
+	if err != nil {
+		return fmt.Errorf("Error invalidating product cache: %w", err)
+	}
+	return nil
+}

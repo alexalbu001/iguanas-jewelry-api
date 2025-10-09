@@ -125,6 +125,7 @@ func SetupRoutes(r *gin.Engine, cfg *config.Config, productHandlers *handlers.Pr
 			products.POST("", productHandlers.PostProducts)
 			products.PUT("/:id", productHandlers.UpdateProductByID)
 			products.DELETE("/:id", productHandlers.DeleteProductByID)
+			products.POST("/cache/invalidate", productHandlers.InvalidateProductCache)
 			products.GET("/:id/images", productImagesHandlers.GetProductImages)
 			products.POST("/:id/images", productImagesHandlers.AddProductImage)
 			products.DELETE("/:id/images/:imageID", productImagesHandlers.RemoveProductImage)

@@ -175,3 +175,22 @@ func (h *ProductHandlers) DeleteProductByID(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, gin.H{"message": "Product deleted successfully", "id": id})
 }
+
+// @Summary Invalidate product cache
+// @Description Clears the product cache to force fresh data from database
+// @Tags products
+// @Produce json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} responses.ErrorResponse
+// @Router /api/v1/admin/products/cache/invalidate [post]
+func (h *ProductHandlers) InvalidateProductCache(c *gin.Context) {
+	err := h.ProductHandler.InvalidateAllProductCache(c.Request.Context())
+	if err != nil {
+		c.Error(err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Product cache invalidated successfully",
+		"note":    "Fresh data will be loaded on next product request",
+	})
+}

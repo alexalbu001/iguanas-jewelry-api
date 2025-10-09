@@ -202,13 +202,12 @@ func (c *CachedProductsStore) Restore(ctx context.Context, id string) error {
 
 // InvalidateProductCache invalidates the cache for specific products
 // This should be called after transactions that modify product stock
+// If productIDs is empty, only invalidates the "products:all" key
 func (c *CachedProductsStore) InvalidateProductCache(ctx context.Context, productIDs []string) error {
-	if len(productIDs) == 0 {
-		return nil
-	}
-
 	// Build list of cache keys to invalidate
 	keys := []string{"products:all"} // Always invalidate the full product list
+
+	// Add specific product keys if provided
 	for _, id := range productIDs {
 		keys = append(keys, "product:"+id)
 	}
