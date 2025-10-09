@@ -87,7 +87,7 @@ local region = std.extVar('region');
         },
         {
           name: 'FROM_EMAIL',
-          value: 'alexalbu001@gmail.com',
+          value: 'support@iguanasjewellery.com',
         },
         {
           name: 'FROM_NAME',
