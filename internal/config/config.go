@@ -16,6 +16,7 @@ type Config struct {
 	Logging      LoggingConfig
 	CORS         CORSConfig
 	Sendgrid     SendgridConfig
+	Telemetry    TelemetryConfig
 	AppPort      int    `envconfig:"PORT" default:"8080"`
 	AdminEmail   string `envconfig:"ADMIN_EMAIL" default:"alexalbu001@gmail.com"`
 	Env          string `envconfig:"ENV" default:"dev"`
@@ -69,6 +70,10 @@ type SendgridConfig struct {
 	SendgridApiKey string `envconfig:"SENDGRID_API_KEY"`
 	FromEmail      string `envconfig:"FROM_EMAIL"`
 	FromName       string `envconfig:"FROM_NAME"`
+}
+
+type TelemetryConfig struct {
+	OTELEndpoint string `envconfig:"OTEL_EXPORTER_OTLP_ENDPOINT" default:""`
 }
 
 func Load() (*Config, error) {

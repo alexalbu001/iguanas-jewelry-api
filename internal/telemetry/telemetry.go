@@ -2,7 +2,6 @@ package telemetry
 
 import (
 	"context"
-	"errors"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -19,7 +18,7 @@ type Telemetry struct {
 	metricProvider *metric.MeterProvider
 }
 
-func InitTelemetry(ctx context.Context, serviceName, version, environment string) (*Telemetry, error) {
+func InitTelemetry(ctx context.Context, serviceName, version, environment, otelEndpoint string) (*Telemetry, error) {
 	// 1. Create Resource
 	res, err := resource.New(ctx,
 		resource.WithAttributes(
@@ -32,23 +31,35 @@ func InitTelemetry(ctx context.Context, serviceName, version, environment string
 		return nil, err
 	}
 
-	// 2. Create exporter (start with console)
-
-	traceExporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithEndpoint("localhost:4317"), otlptracegrpc.WithInsecure())
-	if err != nil {
-		return nil, err
-	}
-
+	// 2. Create exporters
 	metricExporter, err := prometheus.New()
 	if err != nil {
 		return nil, err
 	}
 
-	// 3. Create provider WITH Resource
-	tp := trace.NewTracerProvider(
-		trace.WithBatcher(traceExporter),
-		trace.WithResource(res),
-	)
+	// 3. Create trace provider - only connect to OTEL collector if endpoint is configured
+	var tp *trace.TracerProvider
+
+	if otelEndpoint != "" {
+		// OTEL collector endpoint is configured, create exporter
+		traceExporter, err := otlptracegrpc.New(ctx,
+			otlptracegrpc.WithEndpoint(otelEndpoint),
+			otlptracegrpc.WithInsecure(),
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		tp = trace.NewTracerProvider(
+			trace.WithBatcher(traceExporter),
+			trace.WithResource(res),
+		)
+	} else {
+		// No OTEL collector configured, use no-op provider (no errors, no export attempts)
+		tp = trace.NewTracerProvider(
+			trace.WithResource(res),
+		)
+	}
 
 	mp := metric.NewMeterProvider(
 		metric.WithReader(metricExporter),
@@ -73,9 +84,12 @@ func InitTelemetry(ctx context.Context, serviceName, version, environment string
 
 func (t *Telemetry) Shutdown(ctx context.Context) error {
 	err := t.tracerProvider.Shutdown(ctx)
-
-	if err = t.metricProvider.Shutdown(ctx); err != nil {
-		return errors.Join(err, err)
+	if err != nil {
+		return err
 	}
-	return err
+
+	if err := t.metricProvider.Shutdown(ctx); err != nil {
+		return err
+	}
+	return nil
 }

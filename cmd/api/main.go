@@ -61,10 +61,15 @@ func init() {
 // @name Authorization
 func main() {
 	ctx := context.Background()
-	r := gin.Default()
+
+	// Create custom Gin instance without default logging to reduce noise
+	r := gin.New()
+	r.Use(gin.Recovery())           // Keep panic recovery
+	r.Use(skipHealthCheckLogging()) // Custom logging that skips /health
+
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Errorf("Failed to load ENV vars")
+		slog.Error("Failed to load ENV vars", "error", err)
 		os.Exit(1)
 	}
 
@@ -76,7 +81,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	telemtry, err := telemetry.InitTelemetry(ctx, "iguanas-jewelry", cfg.Version, cfg.Env)
+	telemtry, err := telemetry.InitTelemetry(ctx, "iguanas-jewelry", cfg.Version, cfg.Env, cfg.Telemetry.OTELEndpoint)
 	if err != nil {
 		logger.Error("Failed to init telemetry:", "error", err)
 		// fmt.Errorf("Server forced to shutdown", "error", err)
@@ -282,6 +287,20 @@ func main() {
 
 	logger.Info("Server exited")
 
+}
+
+// skipHealthCheckLogging is a middleware that logs requests except for /health endpoint
+func skipHealthCheckLogging() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// Skip logging for health check endpoint
+		if c.Request.URL.Path == "/health" {
+			c.Next()
+			return
+		}
+
+		// Log other requests using gin.Logger
+		gin.Logger()(c)
+	}
 }
 
 func setupLogger(cfg *config.Config) *slog.Logger {
